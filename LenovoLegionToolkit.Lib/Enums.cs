@@ -187,6 +187,16 @@ public enum FloatingGadgetItem
     PchFan,
 }
 
+public enum FanMaxSpeedState
+{
+    [Display(ResourceType = typeof(Resource), Name = "FanMaxSpeedState_Off")]
+    Off,
+    [Display(ResourceType = typeof(Resource), Name = "FanMaxSpeedState_On")]
+    On,
+    [Display(ResourceType = typeof(Resource), Name = "FanMaxSpeedState_Toggle")]
+    Toggle,
+}
+
 public enum FloatingGadgetState
 {
     [Display(ResourceType = typeof(Resource), Name = "FloatingGadgetState_Hidden")]

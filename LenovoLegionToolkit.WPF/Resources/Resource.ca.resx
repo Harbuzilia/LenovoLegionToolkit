@@ -640,12 +640,6 @@
   <data name="CustomFanCurve_Critical_Temp" type="System.Resources.ResXNullRef, System.Windows.Forms">
     <value />
   </data>
-  <data name="CustomFanCurve_Legion_Mode" type="System.Resources.ResXNullRef, System.Windows.Forms">
-    <value />
-  </data>
-  <data name="CustomFanCurve_Low_Temp_Threshold" type="System.Resources.ResXNullRef, System.Windows.Forms">
-    <value />
-  </data>
   <data name="CustomFanCurve_Accelerate" type="System.Resources.ResXNullRef, System.Windows.Forms">
     <value />
   </data>
@@ -658,16 +652,13 @@
   <data name="CustomFanCurve_Deceleration_Tooltip" type="System.Resources.ResXNullRef, System.Windows.Forms">
     <value />
   </data>
-  <data name="CustomFanCurve_Legion_Mode_Tooltip" type="System.Resources.ResXNullRef, System.Windows.Forms">
-    <value />
-  </data>
-  <data name="CustomFanCurve_Low_Temp_Threshold_Tooltip" type="System.Resources.ResXNullRef, System.Windows.Forms">
-    <value />
-  </data>
   <data name="CustomFanCurve_Critical_Temp_Tooltip" type="System.Resources.ResXNullRef, System.Windows.Forms">
     <value />
   </data>
-  <data name="ArgumentWindow_Flag_Enable_Custom_Fan_Curve" type="System.Resources.ResXNullRef, System.Windows.Forms">
+  <data name="FanMaxSpeedAutomationStepControl_Title" type="System.Resources.ResXNullRef, System.Windows.Forms">
+    <value />
+  </data>
+  <data name="FanMaxSpeedAutomationStepControl_Message" type="System.Resources.ResXNullRef, System.Windows.Forms">
     <value />
   </data>
 </root>

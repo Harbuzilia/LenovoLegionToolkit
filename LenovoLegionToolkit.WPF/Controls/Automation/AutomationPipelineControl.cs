@@ -385,6 +385,7 @@ public class AutomationPipelineControl : UserControl
             WinKeyAutomationStep s => new WinKeyAutomationStepControl(s),
             CloseAutomationStep s => new CloseAutomationStepControl(s),
             FloatingGadgetAutomationStep s => new FloatingGadgetAutomationStepControl(s),
+            FanMaxSpeedAutomationStep s => new FanMaxSpeedAutomationStepControl(s),
             _ => throw new InvalidOperationException("Unknown step type"),
         };
         control.MouseRightButtonUp += (_, e) =>

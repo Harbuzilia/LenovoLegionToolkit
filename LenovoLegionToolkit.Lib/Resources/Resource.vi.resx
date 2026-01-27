@@ -596,4 +596,13 @@
   <data name="CustomFanCurveControl_Fan_System" type="System.Resources.ResXNullRef, System.Windows.Forms">
     <value />
   </data>
+  <data name="FanMaxSpeedState_Off" type="System.Resources.ResXNullRef, System.Windows.Forms">
+    <value />
+  </data>
+  <data name="FanMaxSpeedState_On" type="System.Resources.ResXNullRef, System.Windows.Forms">
+    <value />
+  </data>
+  <data name="FanMaxSpeedState_Toggle" type="System.Resources.ResXNullRef, System.Windows.Forms">
+    <value />
+  </data>
 </root>

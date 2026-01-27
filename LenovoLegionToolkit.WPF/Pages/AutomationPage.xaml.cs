@@ -200,6 +200,7 @@ public partial class AutomationPage
             new WinKeyAutomationStep(default),
             new CloseAutomationStep(),
             new FloatingGadgetAutomationStep(default),
+            new FanMaxSpeedAutomationStep(default),
         };
 
         for (var index = steps.Count - 1; index >= 0; index--)

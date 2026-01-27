@@ -538,15 +538,6 @@ namespace LenovoLegionToolkit.WPF.Resources {
         }
         
         /// <summary>
-        ///   查找类似 Enable Custom Fan Curve 的本地化字符串。
-        /// </summary>
-        public static string ArgumentWindow_Flag_Enable_Custom_Fan_Curve {
-            get {
-                return ResourceManager.GetString("ArgumentWindow_Flag_Enable_Custom_Fan_Curve", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   查找类似  Experimental GPU Working Mode 的本地化字符串。
         /// </summary>
         public static string ArgumentWindow_Flag_ExpGpuMode {
@@ -1794,42 +1785,6 @@ namespace LenovoLegionToolkit.WPF.Resources {
         }
         
         /// <summary>
-        ///   查找类似 Legion Mode 的本地化字符串。
-        /// </summary>
-        public static string CustomFanCurve_Legion_Mode {
-            get {
-                return ResourceManager.GetString("CustomFanCurve_Legion_Mode", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   查找类似 Some Legion laptops cannot easily reduce the speed to 0 under low load, and forcing the fan curve to lower will cause conflicts with the EC. Turn on this option to resolve this issue. 的本地化字符串。
-        /// </summary>
-        public static string CustomFanCurve_Legion_Mode_Tooltip {
-            get {
-                return ResourceManager.GetString("CustomFanCurve_Legion_Mode_Tooltip", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   查找类似 Low Temp Threshold 的本地化字符串。
-        /// </summary>
-        public static string CustomFanCurve_Low_Temp_Threshold {
-            get {
-                return ResourceManager.GetString("CustomFanCurve_Low_Temp_Threshold", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   查找类似 Below this temperature EC controls the fan. 的本地化字符串。
-        /// </summary>
-        public static string CustomFanCurve_Low_Temp_Threshold_Tooltip {
-            get {
-                return ResourceManager.GetString("CustomFanCurve_Low_Temp_Threshold_Tooltip", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   查找类似 PWM Value 的本地化字符串。
         /// </summary>
         public static string CustomFanCurve_PWM_Value {
@@ -2655,6 +2610,24 @@ namespace LenovoLegionToolkit.WPF.Resources {
         public static string FanCurveControl_PCH {
             get {
                 return ResourceManager.GetString("FanCurveControl_PCH", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 Set fan to maximum speed. 的本地化字符串。
+        /// </summary>
+        public static string FanMaxSpeedAutomationStepControl_Message {
+            get {
+                return ResourceManager.GetString("FanMaxSpeedAutomationStepControl_Message", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 Fan Max Speed 的本地化字符串。
+        /// </summary>
+        public static string FanMaxSpeedAutomationStepControl_Title {
+            get {
+                return ResourceManager.GetString("FanMaxSpeedAutomationStepControl_Title", resourceCulture);
             }
         }
         
