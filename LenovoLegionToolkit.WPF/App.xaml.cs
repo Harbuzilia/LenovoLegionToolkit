@@ -813,7 +813,7 @@ public partial class App
     public void InitFloatingGadget()
     {
         MessagingCenter.Subscribe<FloatingGadgetChangedMessage>(this,
-            message => { Dispatcher.Invoke(() => HandleFloatingGadgetCommand(message.State)); }
+            message => { Dispatcher.Invoke(() => HandleFloatingGadgetCommand(message.State)); });
 
         var settings = IoCContainer.Resolve<ApplicationSettings>();
 
