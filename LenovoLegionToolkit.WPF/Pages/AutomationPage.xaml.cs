@@ -16,6 +16,7 @@ using LenovoLegionToolkit.WPF.Resources;
 using LenovoLegionToolkit.WPF.Utils;
 using LenovoLegionToolkit.WPF.Windows.Automation;
 using LenovoLegionToolkit.WPF.Windows.Utils;
+using LenovoLegionToolkit.WPF.Windows.Settings;
 using Wpf.Ui.Common;
 using MenuItem = Wpf.Ui.Controls.MenuItem;
 
@@ -37,6 +38,12 @@ public partial class AutomationPage
     private async void AutomationPage_Initialized(object? sender, EventArgs e)
     {
         await RefreshAsync();
+    }
+
+    private void ExcludeProcesses_Click(object sender, RoutedEventArgs e)
+    {
+        var window = new ExcludeProcessesWindow { Owner = Window.GetWindow(this) };
+        window.ShowDialog();
     }
 
     private async void EnableAutomaticPipelinesToggle_Click(object sender, RoutedEventArgs e)

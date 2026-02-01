@@ -245,7 +245,8 @@ public class GameAutoListener : AbstractAutoListener<GameAutoListener.ChangedEve
             || processName.Equals("csrss", StringComparison.OrdinalIgnoreCase)
             || processName.Equals("WmiApSrv", StringComparison.OrdinalIgnoreCase)
             || processName.Equals("HWiNFO64", StringComparison.OrdinalIgnoreCase)
-            || processName.Equals("HWiNFO32", StringComparison.OrdinalIgnoreCase);
+            || processName.Equals("HWiNFO32", StringComparison.OrdinalIgnoreCase)
+            || processName.Equals("nvidia-smi", StringComparison.OrdinalIgnoreCase);
     }
 
     private void InstanceStartedEventAutoAutoListener_Changed(object? sender, InstanceStartedEventAutoAutoListener.ChangedEventArgs e)
