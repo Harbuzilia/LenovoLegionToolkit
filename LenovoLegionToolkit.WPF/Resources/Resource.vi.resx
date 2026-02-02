@@ -2856,4 +2856,22 @@ Vui lòng không tiếp tục trừ khi bạn có kiến thức và chuyên môn
   <data name="SettingsPage_ExcludeProcesses_Title" type="System.Resources.ResXNullRef, System.Windows.Forms">
     <value />
   </data>
+  <data name="AutomationPage_Game_Detection_Title" type="System.Resources.ResXNullRef, System.Windows.Forms">
+    <value />
+  </data>
+  <data name="AutomationPage_Game_Detection_Sub_Title" type="System.Resources.ResXNullRef, System.Windows.Forms">
+    <value />
+  </data>
+  <data name="AutomationPage_Game_Detection_Method_Auto" type="System.Resources.ResXNullRef, System.Windows.Forms">
+    <value />
+  </data>
+  <data name="AutomationPage_Game_Detection_Method_Discrete_GPU" type="System.Resources.ResXNullRef, System.Windows.Forms">
+    <value />
+  </data>
+  <data name="AutomationPage_Game_Detection_Method_List" type="System.Resources.ResXNullRef, System.Windows.Forms">
+    <value />
+  </data>
+  <data name="AutomationPage_Game_Detection_Method_Game_Mode" type="System.Resources.ResXNullRef, System.Windows.Forms">
+    <value />
+  </data>
 </root>

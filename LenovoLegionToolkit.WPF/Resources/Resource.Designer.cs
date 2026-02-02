@@ -692,6 +692,60 @@ namespace LenovoLegionToolkit.WPF.Resources {
         }
         
         /// <summary>
+        ///   查找类似 Automatic (All Methods) 的本地化字符串。
+        /// </summary>
+        public static string AutomationPage_Game_Detection_Method_Auto {
+            get {
+                return ResourceManager.GetString("AutomationPage_Game_Detection_Method_Auto", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 Discrete GPU Activity 的本地化字符串。
+        /// </summary>
+        public static string AutomationPage_Game_Detection_Method_Discrete_GPU {
+            get {
+                return ResourceManager.GetString("AutomationPage_Game_Detection_Method_Discrete_GPU", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 Windows Game Mode 的本地化字符串。
+        /// </summary>
+        public static string AutomationPage_Game_Detection_Method_Game_Mode {
+            get {
+                return ResourceManager.GetString("AutomationPage_Game_Detection_Method_Game_Mode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 Known Game List 的本地化字符串。
+        /// </summary>
+        public static string AutomationPage_Game_Detection_Method_List {
+            get {
+                return ResourceManager.GetString("AutomationPage_Game_Detection_Method_List", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 Configure detection methods and exclusions 的本地化字符串。
+        /// </summary>
+        public static string AutomationPage_Game_Detection_Sub_Title {
+            get {
+                return ResourceManager.GetString("AutomationPage_Game_Detection_Sub_Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 Game Detection 的本地化字符串。
+        /// </summary>
+        public static string AutomationPage_Game_Detection_Title {
+            get {
+                return ResourceManager.GetString("AutomationPage_Game_Detection_Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   查找类似 No Quick Actions defined. Click &quot;Add new&quot; to create new Quick Action. 的本地化字符串。
         /// </summary>
         public static string AutomationPage_QuickActions_Empty {
