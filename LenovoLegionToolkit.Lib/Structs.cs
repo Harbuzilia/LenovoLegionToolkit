@@ -569,7 +569,6 @@ public readonly struct MachineInformation
 public readonly struct OverclockingProfile
 {
     public uint? FMax { get; init; }
-    public bool ProchotEnabled { get; init; }
     public List<double?> CoreValues { get; init; }
 }
 

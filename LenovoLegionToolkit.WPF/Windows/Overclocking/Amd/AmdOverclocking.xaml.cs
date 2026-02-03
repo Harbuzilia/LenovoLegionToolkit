@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -11,7 +13,6 @@ using LenovoLegionToolkit.Lib.Messaging.Messages;
 using LenovoLegionToolkit.Lib.Overclocking.Amd;
 using LenovoLegionToolkit.Lib.Utils;
 using LenovoLegionToolkit.WPF.Resources;
-using LenovoLegionToolkit.WPF.Windows.Utils;
 using Microsoft.Win32;
 using Wpf.Ui.Controls;
 
@@ -20,13 +21,16 @@ namespace LenovoLegionToolkit.WPF.Windows.Overclocking.Amd;
 public partial class AmdOverclocking : UiWindow
 {
     private readonly AmdOverclockingController _controller = IoCContainer.Resolve<AmdOverclockingController>();
-    private NumberBox[] _coreBoxes = null!;
     private bool _isInitialized;
+    private bool _isUpdatingUi = false;
     private CancellationTokenSource? _statusCts;
+
+    public ObservableCollection<AmdCcdGroup> CcdList { get; set; } = new();
 
     public AmdOverclocking()
     {
         InitializeComponent();
+        _ccdItemsControl.ItemsSource = CcdList;
 
         IsVisibleChanged += AmdOverclocking_IsVisibleChanged;
         Loaded += AmdOverclocking_Loaded;
@@ -39,15 +43,17 @@ public partial class AmdOverclocking : UiWindow
 
     private async void AmdOverclocking_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
-        _initCoreArray();
-
         if (_isInitialized)
         {
-            await RefreshAsync();
+            await LoadFromHardwareAsync();
+
+            var profile = _controller.LoadProfile();
+            if (profile != null)
+            {
+                UpdateUiFromProfile(profile);
+            }
         }
     }
-
-    private void _initCoreArray() => _coreBoxes = [_core0, _core1, _core2, _core3, _core4, _core5, _core6, _core7, _core8, _core9, _core10, _core11, _core12, _core13, _core14, _core15];
 
     private async Task InitAndRefreshAsync()
     {
@@ -56,15 +62,23 @@ public partial class AmdOverclocking : UiWindow
             try
             {
                 await _controller.InitializeAsync();
+                InitializeDynamicUi();
                 _isInitialized = true;
             }
             catch (Exception ex)
             {
-                Log.Instance.Trace($"Init Failed: {ex.Message}"); return;
+                Log.Instance.Trace($"Init Failed: {ex.Message}");
+                return;
             }
         }
 
-        UpdateUi();
+        await LoadFromHardwareAsync();
+
+        var profile = _controller.LoadProfile();
+        if (profile != null)
+        {
+            UpdateUiFromProfile(profile);
+        }
 
         if (!_controller.DoNotApply)
         {
@@ -77,83 +91,172 @@ public partial class AmdOverclocking : UiWindow
         }
     }
 
-    public async Task ApplyInternalProfileAsync()
+    private void InitializeDynamicUi()
     {
-        await _controller.ApplyInternalProfileAsync();
-    }
+        CcdList.Clear();
+        var cpu = _controller.GetCpu();
 
-    public void UpdateUi()
-    {
-        Dispatcher.Invoke(() =>
+        int coresPerCcd = 8;
+        int totalCores = (int)cpu.info.topology.physicalCores;
+        int ccdCount = (int)Math.Ceiling((double)totalCores / coresPerCcd);
+
+        for (int ccdIndex = 0; ccdIndex < ccdCount; ccdIndex++)
         {
-            UpdateUiFromProfile(_controller.LoadProfile());
-            _ = RefreshAsync();
-        });
+            var group = new AmdCcdGroup
+            {
+                HeaderTitle = $"CCD {ccdIndex}",
+                IsExpanded = true
+            };
+
+            int startCore = ccdIndex * coresPerCcd;
+            int endCore = Math.Min(startCore + coresPerCcd, totalCores);
+
+            for (int i = startCore; i < endCore; i++)
+            {
+                group.Cores.Add(new AmdCoreItem
+                {
+                    Index = i,
+                    DisplayName = string.Format(Resource.AmdOverclocking_Core_Title, i),
+                    IsUserEnabled = true,
+                    OffsetValue = 0
+                });
+            }
+            CcdList.Add(group);
+        }
     }
 
-    private async Task RefreshAsync()
+    private async Task LoadFromHardwareAsync()
     {
         try
         {
-            var data = await Task.Run(() =>
+            var result = await Task.Run(() =>
             {
                 var cpu = _controller.GetCpu();
-                var activeCores = cpu.info.topology.physicalCores;
-                var coreStates = Enumerable.Range(0, _coreBoxes.Length).Select(i =>
-                {
-                    bool active = i < activeCores && _controller.IsCoreActive(i);
-                    uint? margin = active ? cpu.GetPsmMarginSingleCore(_controller.EncodeCoreMarginBitmask(i)) : null;
+                var fmax = cpu.GetFMax();
 
-                    double? val = margin.HasValue ? (double)(int)margin.Value : null;
-                    return (active, val);
-                }).ToList();
+                var coreReadings = new Dictionary<int, double>();
+                var allCores = CcdList.SelectMany(x => x.Cores).ToList();
 
-                return new
+                foreach (var core in allCores)
                 {
-                    FMax = cpu.GetFMax(),
-                    Prochot = cpu.IsProchotEnabled(),
-                    States = coreStates,
-                    MarginSupported = cpu.smu.Rsmu.SMU_MSG_SetDldoPsmMargin != 0
-                };
+                    if (_controller.IsCoreActive(core.Index))
+                    {
+                        uint? margin = cpu.GetPsmMarginSingleCore(_controller.EncodeCoreMarginBitmask(core.Index));
+                        if (margin.HasValue)
+                        {
+                            coreReadings[core.Index] = (double)(int)margin.Value;
+                        }
+                    }
+                }
+
+                bool isX3dModeActive = false;
+                if (cpu.info.topology.physicalCores == 16)
+                {
+                    bool hasDataForCcd1 = false;
+                    for (int i = 8; i < 16; i++)
+                    {
+                        if (coreReadings.ContainsKey(i))
+                        {
+                            hasDataForCcd1 = true;
+                            break;
+                        }
+                    }
+
+                    if (!hasDataForCcd1)
+                    {
+                        isX3dModeActive = true;
+                    }
+                }
+
+                return new { FMax = fmax, Readings = coreReadings, IsX3dMode = isX3dModeActive };
             });
 
-            _fMaxNumberBox.Value = data.FMax;
-            _prochotCheckBox.IsChecked = data.Prochot;
+            _fMaxNumberBox.Value = result.FMax;
+            _fMaxToggle.IsChecked = true;
 
-            for (int i = 0; i < _coreBoxes.Length; i++)
+            if (_x3dGamingToggle != null)
             {
-                var state = data.States[i];
-                _coreBoxes[i].Visibility = state.active ? Visibility.Visible : Visibility.Collapsed;
-                _coreBoxes[i].IsEnabled = state.active && data.MarginSupported;
-                _coreBoxes[i].Value = state.active ? state.val : null;
+                _isUpdatingUi = true;
+                _x3dGamingToggle.IsChecked = result.IsX3dMode;
+            }
+
+            foreach (var ccd in CcdList)
+            {
+                bool anyCoreEnabled = false;
+                foreach (var core in ccd.Cores)
+                {
+                    if (result.Readings.TryGetValue(core.Index, out var reading))
+                    {
+                        core.OffsetValue = reading;
+                        core.IsUserEnabled = true;
+                        anyCoreEnabled = true;
+                    }
+                    else
+                    {
+                        core.OffsetValue = 0;
+                        core.IsUserEnabled = false;
+                    }
+                }
+                ccd.IsExpanded = anyCoreEnabled;
             }
         }
         catch (Exception ex)
         {
-            Log.Instance.Trace($"Refresh Failed: {ex.Message}");
+            Log.Instance.Trace($"Hardware Read Failed: {ex.Message}");
         }
     }
 
     private void UpdateUiFromProfile(OverclockingProfile? profile)
     {
         if (profile == null) return;
-        _fMaxNumberBox.Value = profile.Value.FMax;
-        _prochotCheckBox.IsChecked = profile.Value.ProchotEnabled;
 
-        for (int i = 0; i < _coreBoxes.Length && i < profile.Value.CoreValues.Count; i++)
+        if (profile.Value.FMax.HasValue)
         {
-            _coreBoxes[i].Value = _controller.IsCoreActive(i) ? profile.Value.CoreValues[i] : null;
+            _fMaxNumberBox.Value = profile.Value.FMax.Value;
+            _fMaxToggle.IsChecked = true;
         }
+
+        var allCores = CcdList.SelectMany(ccd => ccd.Cores).ToList();
+
+        for (int i = 0; i < allCores.Count; i++)
+        {
+            var coreItem = allCores[i];
+
+            if (coreItem.IsUserEnabled)
+            {
+                if (i < profile.Value.CoreValues.Count)
+                {
+                    var savedVal = profile.Value.CoreValues[i];
+                    if (savedVal.HasValue)
+                    {
+                        coreItem.OffsetValue = savedVal.Value;
+                    }
+                }
+            }
+        }
+
+        foreach (var ccd in CcdList)
+        {
+            ccd.IsExpanded = ccd.Cores.Any(c => c.IsUserEnabled);
+        }
+    }
+
+    public async Task ApplyInternalProfileAsync()
+    {
+        await _controller.ApplyInternalProfileAsync();
     }
 
     private OverclockingProfile GetProfileFromUi()
     {
-        var coreValues = _coreBoxes.Select((t, i) => _controller.IsCoreActive(i) ? t.Value : null).ToList();
+        var allCores = CcdList.SelectMany(ccd => ccd.Cores).ToList();
+
+        var coreValues = allCores.Select(c => c.IsUserEnabled ? (double?)c.OffsetValue : null).ToList();
+
+        uint? fmaxVal = _fMaxToggle.IsChecked == true ? (uint?)(_fMaxNumberBox.Value) : null;
 
         return new OverclockingProfile
         {
-            FMax = (uint?)(_fMaxNumberBox.Value),
-            ProchotEnabled = _prochotCheckBox.IsChecked ?? false,
+            FMax = fmaxVal,
             CoreValues = coreValues
         };
     }
@@ -166,34 +269,82 @@ public partial class AmdOverclocking : UiWindow
             await _controller.ApplyProfileAsync(profile);
             _controller.SaveProfile(profile);
             ShowStatus($"{Resource.AmdOverclocking_Success_Title}", $"{Resource.AmdOverclocking_Success_Message}", InfoBarSeverity.Success);
-            await RefreshAsync();
         }
-        catch (Exception ex) { ShowStatus($"{Resource.Error}", ex.Message, InfoBarSeverity.Error); }
+        catch (Exception ex)
+        {
+            ShowStatus($"{Resource.Error}", ex.Message, InfoBarSeverity.Error);
+        }
     }
 
     private void OnSaveClick(object sender, RoutedEventArgs e)
     {
         var sfd = new SaveFileDialog { Filter = "JSON Profile (*.json)|*.json", FileName = "AmdOverclocking.json" };
-        if (sfd.ShowDialog() == true) { _controller.SaveProfile(GetProfileFromUi(), sfd.FileName); ShowStatus("Saved", "Success", InfoBarSeverity.Success); }
+        if (sfd.ShowDialog() == true)
+        {
+            _controller.SaveProfile(GetProfileFromUi(), sfd.FileName);
+            ShowStatus("Saved", "Success", InfoBarSeverity.Success);
+        }
     }
 
     private void OnLoadClick(object sender, RoutedEventArgs e)
     {
         var ofd = new OpenFileDialog { Filter = "JSON Profile (*.json)|*.json" };
-        if (ofd.ShowDialog() == true) { UpdateUiFromProfile(_controller.LoadProfile(ofd.FileName)); ShowStatus("Loaded", "Success", InfoBarSeverity.Informational); }
+        if (ofd.ShowDialog() == true)
+        {
+            var loadedProfile = _controller.LoadProfile(ofd.FileName);
+            UpdateUiFromProfile(loadedProfile);
+            ShowStatus("Loaded", "Success", InfoBarSeverity.Informational);
+        }
     }
 
-    private void OnResetClick(object sender, RoutedEventArgs e) { foreach (var box in _coreBoxes) box.Value = 0; }
+    private void OnResetClick(object sender, RoutedEventArgs e)
+    {
+        foreach (var ccd in CcdList)
+        {
+            foreach (var core in ccd.Cores)
+            {
+                if (core.IsUserEnabled)
+                {
+                    core.OffsetValue = 0;
+                }
+            }
+        }
+        _fMaxNumberBox.Value = 0;
+        _fMaxToggle.IsChecked = true;
+    }
+
+    private void OnGlobalDecrementClick(object sender, RoutedEventArgs e)
+    {
+        foreach (var ccd in CcdList)
+        {
+            foreach (var core in ccd.Cores)
+            {
+                if (core.IsUserEnabled) core.OffsetValue -= 1;
+            }
+        }
+    }
+
+    private void OnGlobalIncrementClick(object sender, RoutedEventArgs e)
+    {
+        foreach (var ccd in CcdList)
+        {
+            foreach (var core in ccd.Cores)
+            {
+                if (core.IsUserEnabled) core.OffsetValue += 1;
+            }
+        }
+    }
 
     private void ShowStatus(string title, string message, InfoBarSeverity severity, bool showForever = false)
     {
-        _statusCts?.Cancel(); _statusCts = new CancellationTokenSource();
-        _statusInfoBar.Title = title; _statusInfoBar.Message = message; _statusInfoBar.Severity = severity; _statusInfoBar.IsOpen = true;
-        if (showForever)
-        {
-            _statusInfoBar.IsOpen = true;
-        }
-        else
+        _statusCts?.Cancel();
+        _statusCts = new CancellationTokenSource();
+        _statusInfoBar.Title = title;
+        _statusInfoBar.Message = message;
+        _statusInfoBar.Severity = severity;
+        _statusInfoBar.IsOpen = true;
+
+        if (!showForever)
         {
             Task.Delay(5000, _statusCts.Token).ContinueWith(t =>
             {
@@ -207,15 +358,23 @@ public partial class AmdOverclocking : UiWindow
 
     private void X3DGamingModeEnabled_OnClick(object sender, RoutedEventArgs e)
     {
-        _controller.SwitchProfile(CpuProfileMode.X3DGaming);
+        if (_isUpdatingUi)
+        {
+            return;
+        }
 
+        _controller.SwitchProfile(CpuProfileMode.X3DGaming);
         MessagingCenter.Publish(new NotificationMessage(NotificationType.AutomationNotification, Resource.SettingsPage_UseNewDashboard_Restart_Message));
     }
 
     private void X3DGamingModeDisabled_OnClick(object sender, RoutedEventArgs e)
     {
-        _controller.SwitchProfile(CpuProfileMode.Productivity);
+        if (_isUpdatingUi)
+        {
+            return;
+        }
 
+        _controller.SwitchProfile(CpuProfileMode.Productivity);
         MessagingCenter.Publish(new NotificationMessage(NotificationType.AutomationNotification, Resource.SettingsPage_UseNewDashboard_Restart_Message));
     }
 }

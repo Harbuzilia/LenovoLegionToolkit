@@ -2879,4 +2879,16 @@ Gerekli teknik uzmanlığa sahip değilseniz devam etmeyin.</value>
   <data name="AutomationPipelineControl_RunOnStartup_Tooltip" type="System.Resources.ResXNullRef, System.Windows.Forms">
     <value />
   </data>
+  <data name="AmdOverclocking_Per_Core_Title" type="System.Resources.ResXNullRef, System.Windows.Forms">
+    <value />
+  </data>
+  <data name="AmdOverclocking_Global_Offset" type="System.Resources.ResXNullRef, System.Windows.Forms">
+    <value />
+  </data>
+  <data name="AmdOverclocking_Global_Plus" type="System.Resources.ResXNullRef, System.Windows.Forms">
+    <value />
+  </data>
+  <data name="AmdOverclocking_Global_Dim" type="System.Resources.ResXNullRef, System.Windows.Forms">
+    <value />
+  </data>
 </root>

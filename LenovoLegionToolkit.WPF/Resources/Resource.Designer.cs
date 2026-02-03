@@ -322,6 +322,42 @@ namespace LenovoLegionToolkit.WPF.Resources {
         }
         
         /// <summary>
+        ///   查找类似 -1 All 的本地化字符串。
+        /// </summary>
+        public static string AmdOverclocking_Global_Dim {
+            get {
+                return ResourceManager.GetString("AmdOverclocking_Global_Dim", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 Global Offset: 的本地化字符串。
+        /// </summary>
+        public static string AmdOverclocking_Global_Offset {
+            get {
+                return ResourceManager.GetString("AmdOverclocking_Global_Offset", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 +1 All 的本地化字符串。
+        /// </summary>
+        public static string AmdOverclocking_Global_Plus {
+            get {
+                return ResourceManager.GetString("AmdOverclocking_Global_Plus", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 Per-Core Optimization 的本地化字符串。
+        /// </summary>
+        public static string AmdOverclocking_Per_Core_Title {
+            get {
+                return ResourceManager.GetString("AmdOverclocking_Per_Core_Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   查找类似 Status 的本地化字符串。
         /// </summary>
         public static string AmdOverclocking_Status_Title {

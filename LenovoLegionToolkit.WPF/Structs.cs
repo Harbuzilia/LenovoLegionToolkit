@@ -1,13 +1,79 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Windows;
-using System.Windows.Media;
-using LenovoLegionToolkit.Lib;
+﻿using LenovoLegionToolkit.Lib;
 using LenovoLegionToolkit.Lib.Utils;
 using LenovoLegionToolkit.WPF.Resources;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Windows;
+using System.Windows.Media;
 
 namespace LenovoLegionToolkit.WPF;
+
+public class AmdCcdGroup : INotifyPropertyChanged
+{
+    public string HeaderTitle { get; set; } = string.Empty;
+    public string HeaderSubtitle { get; set; } = string.Empty;
+    public ObservableCollection<AmdCoreItem> Cores { get; set; } = new();
+
+    private bool _isExpanded;
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set
+        {
+            if (_isExpanded != value)
+            {
+                _isExpanded = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+}
+
+public class AmdCoreItem : INotifyPropertyChanged
+{
+    public int Index { get; set; }
+    public string DisplayName { get; set; } = string.Empty;
+
+    private double _offsetValue;
+    public double OffsetValue
+    {
+        get => _offsetValue;
+        set
+        {
+            if (_offsetValue != value)
+            {
+                _offsetValue = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    private bool _isUserEnabled;
+    public bool IsUserEnabled
+    {
+        get => _isUserEnabled;
+        set
+        {
+            if (_isUserEnabled != value)
+            {
+                _isUserEnabled = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+}
 
 public readonly struct DashboardGroup(DashboardGroupType type, string? customName, params DashboardItem[] items)
 {

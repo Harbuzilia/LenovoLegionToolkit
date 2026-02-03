@@ -159,8 +159,6 @@ public sealed class AmdOverclockingController : IDisposable
 
         await Task.Run(() =>
         {
-            EnableOCMode(profile.ProchotEnabled);
-
             if (profile.FMax is { } fmax)
             {
                 _cpu.SetFMax(fmax);
@@ -185,13 +183,6 @@ public sealed class AmdOverclockingController : IDisposable
         {
             await ApplyProfileAsync(profile).ConfigureAwait(false);
         }
-    }
-
-    public bool EnableOCMode(bool prochotEnabled = true)
-    {
-        EnsureInitialized();
-        var args = MakeCmdArgs(prochotEnabled ? 0U : PROCHOT_DISABLED_BIT, _cpu.smu.Rsmu.MAX_ARGS);
-        return _cpu.smu.SendSmuCommand(_cpu.smu.Rsmu, _cpu.smu.Rsmu.SMU_MSG_EnableOcMode, ref args) == SMU.Status.OK;
     }
 
     public uint EncodeCoreMarginBitmask(int coreIndex, int coresPerCCD = 8)
