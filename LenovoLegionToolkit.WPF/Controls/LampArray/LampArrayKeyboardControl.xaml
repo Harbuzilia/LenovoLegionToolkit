@@ -25,19 +25,17 @@
             <controls:LampArrayZoneControl KeyCode="0x71" Label="F2" Style="{StaticResource BaseKey}" ToolTip="F2" Canvas.Left="76" Canvas.Top="16" Width="34" Height="20" />
             <controls:LampArrayZoneControl KeyCode="0x72" Label="F3" Style="{StaticResource BaseKey}" ToolTip="F3" Canvas.Left="111" Canvas.Top="16" HorizontalAlignment="Left" VerticalAlignment="Center" Width="34" Height="20" />
             <controls:LampArrayZoneControl KeyCode="0x73" Label="F4" Style="{StaticResource BaseKey}" ToolTip="F4" Canvas.Left="146" Canvas.Top="16" Width="34" Height="20" />
-
             <controls:LampArrayZoneControl KeyCode="0x74" Label="F5" Style="{StaticResource BaseKey}" ToolTip="F5" Canvas.Left="181" Canvas.Top="16" HorizontalAlignment="Left" VerticalAlignment="Center" Width="34" Height="20" />
             <controls:LampArrayZoneControl KeyCode="0x75" Label="F6" Style="{StaticResource BaseKey}" ToolTip="F6" Canvas.Left="216" Canvas.Top="16" Width="34" Height="20" />
             <controls:LampArrayZoneControl KeyCode="0x76" Label="F7" Style="{StaticResource BaseKey}" ToolTip="F7" Canvas.Left="251" Canvas.Top="16" HorizontalAlignment="Left" VerticalAlignment="Center" Width="34" Height="20" />
             <controls:LampArrayZoneControl KeyCode="0x77" Label="F8" Style="{StaticResource BaseKey}" ToolTip="F8" Canvas.Left="286" Canvas.Top="16" Width="34" Height="20" />
-
             <controls:LampArrayZoneControl KeyCode="0x78" Label="F9" Style="{StaticResource BaseKey}" ToolTip="F9" Canvas.Left="321" Canvas.Top="16" HorizontalAlignment="Left" VerticalAlignment="Center" Width="34" Height="20" />
             <controls:LampArrayZoneControl KeyCode="0x79" Label="F10" Style="{StaticResource BaseKey}" ToolTip="F10" Canvas.Left="356" Canvas.Top="16" Width="34" Height="20" />
             <controls:LampArrayZoneControl KeyCode="0x7A" Label="F11" Style="{StaticResource BaseKey}" ToolTip="F11" Canvas.Left="391" Canvas.Top="16" HorizontalAlignment="Left" VerticalAlignment="Center" Width="34" Height="20" />
             <controls:LampArrayZoneControl KeyCode="0x7B" Label="F12" Style="{StaticResource BaseKey}" ToolTip="F12" Canvas.Left="426" Canvas.Top="16" Width="34" Height="20" />
 
-            <controls:LampArrayZoneControl KeyCode="0x2C" Label="Prt" Style="{StaticResource BaseKey}" ToolTip="PrtSc" Canvas.Left="461" Canvas.Top="16" HorizontalAlignment="Left" VerticalAlignment="Center" Width="34" Height="20" />
             <controls:LampArrayZoneControl KeyCode="0x2D" Label="Ins" Style="{StaticResource BaseKey}" ToolTip="Ins" Canvas.Left="496" Canvas.Top="16" Width="34" Height="20" />
+            <controls:LampArrayZoneControl KeyCode="0x2C" Label="Prt" Style="{StaticResource BaseKey}" ToolTip="PrtSc" Canvas.Left="461" Canvas.Top="16" HorizontalAlignment="Left" VerticalAlignment="Center" Width="34" Height="20" />
             <controls:LampArrayZoneControl KeyCode="0x2E" Label="Del" Style="{StaticResource BaseKey}" ToolTip="Del" Canvas.Left="531" HorizontalAlignment="Left" VerticalAlignment="Center" Height="20" Canvas.Top="16" Width="39" />
 
             <controls:LampArrayZoneControl KeyCode="0xB3" Label="⏯" Style="{StaticResource BaseKey}" ToolTip="Play/Pause" Canvas.Left="580" Canvas.Top="16" Width="36" Height="20" />
@@ -116,8 +114,6 @@
             <controls:LampArrayZoneControl KeyCode="0xBF" Label="/" Style="{StaticResource BaseKey}" ToolTip="/" Canvas.Left="430" Canvas.Top="160" />
             <controls:LampArrayZoneControl KeyCode="0xA1" Label="Shift" Style="{StaticResource BaseKey}" Width="102" ToolTip="RShift" Canvas.Left="468" Canvas.Top="160" />
 
-            <controls:LampArrayZoneControl KeyCode="0x26" Label="↑" Style="{StaticResource BaseKey}" ToolTip="Up" Canvas.Left="504" Canvas.Top="198" />
-
             <controls:LampArrayZoneControl KeyCode="0x61" Label="1" Style="{StaticResource BaseKey}" ToolTip="1" Canvas.Left="580" Canvas.Top="160" />
             <controls:LampArrayZoneControl KeyCode="0x62" Label="2" Style="{StaticResource BaseKey}" ToolTip="2" Canvas.Left="618" Canvas.Top="160" />
             <controls:LampArrayZoneControl KeyCode="0x63" Label="3" Style="{StaticResource BaseKey}" ToolTip="3" Canvas.Left="656" Canvas.Top="160" />
@@ -131,6 +127,7 @@
             <controls:LampArrayZoneControl KeyCode="0xA5" Label="Alt" Style="{StaticResource BaseKey}" Width="36" ToolTip="RAlt" Canvas.Left="392" Canvas.Top="198" />
             <controls:LampArrayZoneControl KeyCode="0xA3" Label="Ctrl" Style="{StaticResource BaseKey}" Width="36" ToolTip="RCtrl" Canvas.Left="430" Canvas.Top="198" />
 
+            <controls:LampArrayZoneControl KeyCode="0x26" Label="↑" Style="{StaticResource BaseKey}" ToolTip="Up" Canvas.Left="504" Canvas.Top="198" />
             <controls:LampArrayZoneControl KeyCode="0x25" Label="←" Style="{StaticResource BaseKey}" ToolTip="Left" Canvas.Left="466" Canvas.Top="235" />
             <controls:LampArrayZoneControl KeyCode="0x28" Label="↓" Style="{StaticResource BaseKey}" ToolTip="Down" Canvas.Left="504" Canvas.Top="235" />
             <controls:LampArrayZoneControl KeyCode="0x27" Label="→" Style="{StaticResource BaseKey}" ToolTip="Right" Canvas.Left="542" Canvas.Top="235" />
