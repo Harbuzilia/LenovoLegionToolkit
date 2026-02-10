@@ -75,8 +75,6 @@ public partial class SpectrumKeyboardBacklightEditEffectWindow
             if (effectType.IsAllLightsEffect() || effectType.IsWholeKeyboardEffect())
                 keys = _allKeyboardKeyCodes;
         }
-
-        _previewController.SetPreviewColorsForScanCodes(keys, color);
     }
 
     private void EffectsComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)

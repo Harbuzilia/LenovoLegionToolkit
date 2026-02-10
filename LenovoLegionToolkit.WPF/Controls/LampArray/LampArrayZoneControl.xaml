@@ -45,7 +45,7 @@
     </UserControl.Resources>
 
     <Grid>
-        <Border x:Name="_background" Opacity="0.8" />
+        <Border x:Name="_background" Background="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=LampBrush}" CornerRadius="4" Opacity="0.8" />
 
         <ToggleButton
             x:Name="_button"

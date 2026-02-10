@@ -86,8 +86,6 @@ public class LampArrayPreviewController : IDisposable
     private double _transitionDuration;
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
 
-    public event EventHandler<LampArrayAvailabilityChangedEventArgs>? AvailabilityChanged;
-
     public double Brightness
     {
         get => _brightness;
@@ -211,11 +209,7 @@ public class LampArrayPreviewController : IDisposable
         return new Dictionary<VirtualKey, List<int>>();
     }
 
-    [Obsolete("Use GetVirtualKeyMapping instead.")]
-    public Dictionary<ushort, List<int>> GetScanCodeToLampMapping()
-    {
-        return new Dictionary<ushort, List<int>>();
-    }
+
 
     public void SetPreviewColor(RGBColor color)
     {
@@ -261,31 +255,7 @@ public class LampArrayPreviewController : IDisposable
         }
     }
 
-    public void SetPreviewColorsForScanCodes(IEnumerable<ushort> scanCodes, RGBColor color)
-    {
-        if (!IsAvailable)
-            return;
 
-        var winColor = ToWindowsColor(color);
-
-        lock (_lampArrays)
-        {
-            foreach (var kvp in _lampArrays)
-            {
-                if (!kvp.Value.Device.IsAvailable)
-                    continue;
-
-                try
-                {
-                    var virtualKeys = new List<VirtualKey>();
-                }
-                catch (Exception ex)
-                {
-                    Log.Instance.Trace($"Failed to set preview colors for scan codes: {ex.Message}");
-                }
-            }
-        }
-    }
 
     public void SetPreviewZoneColors(RGBColor[] zoneColors, ILampArrayZoneMapper mapper)
     {
@@ -358,33 +328,9 @@ public class LampArrayPreviewController : IDisposable
         return details;
     }
 
-    public void SetColorForScanCodes(IDictionary<ushort, Color> scanCodeColors)
-    {
-        if (!IsAvailable)
-        {
-            Log.Instance.Trace($"SetColorForScanCodes failed: Controller not available.");
-            return;
-        }
 
-        lock (_lampArrays)
-        {
-            foreach (var kvp in _lampArrays)
-                if (!kvp.Value.Device.IsAvailable)
-                {
-                    Log.Instance.Trace($"Device {kvp.Key} not available for scan codes.");
-                    continue;
-                }
-        }
-    }
 
-    public void SetColorsForKeys(IList<int> scanCodes, IList<Color> colors)
-    {
-        if (!IsAvailable || scanCodes.Count != colors.Count) return;
 
-        var dict = new Dictionary<ushort, Color>();
-        for (var i = 0; i < scanCodes.Count; i++) dict[(ushort)scanCodes[i]] = colors[i];
-        SetColorForScanCodes(dict);
-    }
 
     public void SetAllLampsColor(Color color)
     {
@@ -450,29 +396,7 @@ public class LampArrayPreviewController : IDisposable
         }
     }
 
-    public void SetColorsForVirtualKeys(IDictionary<VirtualKey, Color> keyColors)
-    {
-        if (!IsAvailable || keyColors == null || keyColors.Count == 0) return;
 
-        var vks = keyColors.Keys.ToArray();
-        var colors = keyColors.Values.ToArray();
-
-        lock (_lampArrays)
-        {
-            foreach (var kvp in _lampArrays)
-            {
-                if (!kvp.Value.Device.IsAvailable) continue;
-                try
-                {
-                    kvp.Value.Device.SetColorsForKeys(colors, vks);
-                }
-                catch (Exception ex)
-                {
-                    Log.Instance.Trace($"SetColorsForKeys failed: {ex.Message}");
-                }
-            }
-        }
-    }
 
     public void SetColorsForAllLamps(IDictionary<ushort, Color> scanCodeColors)
     {
@@ -600,7 +524,7 @@ public class LampArrayPreviewController : IDisposable
             }
         }
 
-        if (_currentEffect == null) return;
+        if (_currentEffect == null && _effectOverrides.IsEmpty) return;
 
         lock (_lampArrays)
         {
@@ -617,9 +541,20 @@ public class LampArrayPreviewController : IDisposable
                     for (var i = 0; i < lampCount; i++)
                     {
                         var lampInfo = device.GetLampInfo(i);
-                        var color = _currentEffect.GetColorForLamp(i, currentTime, lampInfo, lampCount);
+                        
+                        ILampEffect? effectToUse = _currentEffect;
+                        bool isOverridden = _effectOverrides.TryGetValue(i, out var overrideEffect);
+                        if (isOverridden) effectToUse = overrideEffect;
 
-                        if (_targetEffect != null)
+                        if (effectToUse == null) 
+                        {
+                             colors[i] = Color.FromArgb(0,0,0,0);
+                             continue;
+                        }
+
+                        var color = effectToUse.GetColorForLamp(i, currentTime, lampInfo, lampCount);
+
+                        if (!isOverridden && _targetEffect != null)
                         {
                             var targetColor = _targetEffect.GetColorForLamp(i, currentTime, lampInfo, lampCount);
                             var elapsed = _stopwatch.Elapsed.TotalSeconds - _transitionStartTime;
@@ -628,6 +563,7 @@ public class LampArrayPreviewController : IDisposable
                         }
 
                         colors[i] = ApplyBrightness(color, _brightness);
+                        _lastFrameColors[i] = colors[i];
                     }
 
                     device.SetColorsForIndices(colors, Enumerable.Range(0, lampCount).ToArray());
@@ -638,6 +574,25 @@ public class LampArrayPreviewController : IDisposable
                 }
             }
         }
+    }
+    
+    // Add dictionary for overrides
+    private readonly global::System.Collections.Concurrent.ConcurrentDictionary<int, ILampEffect> _effectOverrides = new();
+    private readonly global::System.Collections.Concurrent.ConcurrentDictionary<int, Color> _lastFrameColors = new();
+
+    public void SetEffectForIndices(IEnumerable<int> indices, ILampEffect? effect)
+    {
+        if (indices == null) return;
+        foreach (var index in indices)
+        {
+            if (effect == null) _effectOverrides.TryRemove(index, out _);
+            else _effectOverrides[index] = effect;
+        }
+    }
+
+    public Color? GetCurrentColor(int index)
+    {
+        return _lastFrameColors.TryGetValue(index, out var color) ? color : null;
     }
 
     private static Color ApplyBrightness(Color color, double brightness)
@@ -691,10 +646,7 @@ public class LampArrayPreviewController : IDisposable
             Log.Instance.Trace(
                 $"LampArray device registered: DeviceId={args.Id}, LampCount={lampArray.LampCount}, IsAvailable={lampArray.IsAvailable}");
 
-            if (lampArray.IsAvailable)
-                _ = Task.Run(() =>
-                    AvailabilityChanged?.Invoke(this,
-                        new LampArrayAvailabilityChangedEventArgs(true, lampArray.LampCount)));
+
         }
         catch (Exception ex)
         {
@@ -717,7 +669,7 @@ public class LampArrayPreviewController : IDisposable
                 }
             }
 
-            AvailabilityChanged?.Invoke(this, new LampArrayAvailabilityChangedEventArgs(IsAvailable, LampCount));
+
         }
         catch (Exception ex)
         {
@@ -728,12 +680,6 @@ public class LampArrayPreviewController : IDisposable
     private void LampArray_AvailabilityChanged(LampArray sender, object args)
     {
         Log.Instance.Trace($"LampArray availability changed: IsAvailable={sender.IsAvailable}");
-
-        _ = Task.Run(() =>
-        {
-            AvailabilityChanged?.Invoke(this,
-                new LampArrayAvailabilityChangedEventArgs(sender.IsAvailable, sender.LampCount));
-        });
     }
 
     private static Color ToWindowsColor(RGBColor color)
