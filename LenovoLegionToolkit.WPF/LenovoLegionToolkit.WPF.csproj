@@ -6,7 +6,7 @@
 		<OutputType>WinExe</OutputType>
 		<ApplicationIcon>Assets/icon.ico</ApplicationIcon>
 		<AssemblyName>Lenovo Legion Toolkit</AssemblyName>
-		<Copyright>© 2026 Bartosz Cichecki, Kaguya, and Dr. Skinner</Copyright>
+		<Copyright>© 2025 Bartosz Cichecki • Harbuzilia maintainer</Copyright>
 		<FileVersion>0.0.1</FileVersion>
 		<Version>0.0.1</Version>
 		<Nullable>enable</Nullable>
@@ -14,12 +14,33 @@
 		<UseWindowsForms>true</UseWindowsForms>
 		<SelfContained>false</SelfContained>
 		<PublishSingleFile>false</PublishSingleFile>
-		<PublishReadyToRun>false</PublishReadyToRun>
+		<PublishReadyToRun>true</PublishReadyToRun>
+		<TieredCompilation>true</TieredCompilation>
+		<TieredCompilationQuickJit>true</TieredCompilationQuickJit>
 		<PublishUrl>publish\</PublishUrl>
 		<IncludeAllContentForSelfExtract>false</IncludeAllContentForSelfExtract>
 		<RollForward>Major</RollForward>
-		<CETCompat>false</CETCompat>
 	</PropertyGroup>
+	<!-- Production build: single-file, self-contained, trimmed -->
+	<PropertyGroup Condition="'$(Configuration)'=='Production'">
+		<SelfContained>true</SelfContained>
+		<PublishSingleFile>true</PublishSingleFile>
+		<PublishTrimmed>true</PublishTrimmed>
+		<TrimMode>partial</TrimMode>
+		<EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+		<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+		<DebugType>none</DebugType>
+		<DebugSymbols>false</DebugSymbols>
+	</PropertyGroup>
+	<!-- WinRing0 driver files for RyzenAdj -->
+	<ItemGroup>
+		<Content Include="Drivers\WinRing0x64.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="Drivers\WinRing0x64.sys">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
 		<SourceRevisionId>build$([System.DateTime]::UtcNow.ToString("yyyyMMddHHmmss"))</SourceRevisionId>
 	</PropertyGroup>
@@ -175,16 +196,5 @@
 	  <EmbeddedResource Update="Resources\Resource.zh-hant.resx">
 	    <Generator>PublicResXFileCodeGenerator</Generator>
 	  </EmbeddedResource>
-	</ItemGroup>
-	<ItemGroup>
-		<None Include="External\inpoutx64.dll">
-			<Link>inpoutx64.dll</Link>
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</None>
-
-		<None Include="External\InpOut.LICENSE.txt">
-			<Link>InpOut.LICENSE.txt</Link>
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</None>
 	</ItemGroup>
 </Project>
