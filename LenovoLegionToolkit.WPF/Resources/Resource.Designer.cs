@@ -6421,6 +6421,87 @@ namespace LenovoLegionToolkit.WPF.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Back Up.
+        /// </summary>
+        public static string SettingsBackupWindow_Backup {
+            get {
+                return ResourceManager.GetString("SettingsBackupWindow_Backup", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Backup completed successfully..
+        /// </summary>
+        public static string SettingsBackupWindow_BackupSuccess {
+            get {
+                return ResourceManager.GetString("SettingsBackupWindow_BackupSuccess", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No files selected..
+        /// </summary>
+        public static string SettingsBackupWindow_NoFilesSelected {
+            get {
+                return ResourceManager.GetString("SettingsBackupWindow_NoFilesSelected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No matching files found in selected folder..
+        /// </summary>
+        public static string SettingsBackupWindow_NoMatchingFiles {
+            get {
+                return ResourceManager.GetString("SettingsBackupWindow_NoMatchingFiles", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restore.
+        /// </summary>
+        public static string SettingsBackupWindow_Restore {
+            get {
+                return ResourceManager.GetString("SettingsBackupWindow_Restore", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restoring settings will overwrite your current configuration and restart the application. Do you want to continue?.
+        /// </summary>
+        public static string SettingsBackupWindow_RestoreConfirm {
+            get {
+                return ResourceManager.GetString("SettingsBackupWindow_RestoreConfirm", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restore completed successfully. The application will restart..
+        /// </summary>
+        public static string SettingsBackupWindow_RestoreSuccess {
+            get {
+                return ResourceManager.GetString("SettingsBackupWindow_RestoreSuccess", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Select All.
+        /// </summary>
+        public static string SettingsBackupWindow_SelectAll {
+            get {
+                return ResourceManager.GetString("SettingsBackupWindow_SelectAll", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Backup Settings.
+        /// </summary>
+        public static string SettingsBackupWindow_Title {
+            get {
+                return ResourceManager.GetString("SettingsBackupWindow_Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Change the accent color of the app..
         /// </summary>
         public static string SettingsPage_AccentColor_Description {
@@ -6453,6 +6534,24 @@ namespace LenovoLegionToolkit.WPF.Resources {
         public static string SettingsPage_Autorun_Title {
             get {
                 return ResourceManager.GetString("SettingsPage_Autorun_Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Back up or restore application settings..
+        /// </summary>
+        public static string SettingsPage_BackupSettings_Message {
+            get {
+                return ResourceManager.GetString("SettingsPage_BackupSettings_Message", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Back Up Settings.
+        /// </summary>
+        public static string SettingsPage_BackupSettings_Title {
+            get {
+                return ResourceManager.GetString("SettingsPage_BackupSettings_Title", resourceCulture);
             }
         }
         

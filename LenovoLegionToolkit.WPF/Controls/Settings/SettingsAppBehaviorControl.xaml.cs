@@ -172,6 +172,24 @@ public partial class SettingsAppBehaviorControl
         mainWindow._openLogIndicator.Visibility = Utils.BooleanToVisibilityConverter.Convert(_settings.Store.EnableLogging);
     }
 
+    private void NotificationsCard_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isRefreshing)
+            return;
+
+        var window = new NotificationsSettingsWindow { Owner = Window.GetWindow(this) };
+        window.ShowDialog();
+    }
+
+    private void BackupSettings_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isRefreshing)
+            return;
+
+        var window = new SettingsBackupWindow { Owner = Window.GetWindow(this) };
+        window.ShowDialog();
+    }
+
     private async void UseNewSensorDashboard_Toggle(object sender, RoutedEventArgs e)
     {
         if (_isRefreshing)

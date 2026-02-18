@@ -133,7 +133,8 @@ public partial class MainWindow
 
     private async void MainWindow_Closing(object? sender, CancelEventArgs e)
     {
-        SaveSize();
+        if (!App.IsRestoringSettings)
+            SaveSize();
 
         if (SuppressClosingEventHandler)
             return;

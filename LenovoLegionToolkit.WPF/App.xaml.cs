@@ -76,6 +76,7 @@ public partial class App
 
     public new static App Current => (App)Application.Current;
     public static MainWindow? MainWindowInstance;
+    public static bool IsRestoringSettings { get; set; }
 
     #endregion
 

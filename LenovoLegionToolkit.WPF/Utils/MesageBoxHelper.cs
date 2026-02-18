@@ -7,6 +7,7 @@ using LenovoLegionToolkit.WPF.Resources;
 using Wpf.Ui.Common;
 using MessageBox = Wpf.Ui.Controls.MessageBox;
 using TextBox = Wpf.Ui.Controls.TextBox;
+using Button = Wpf.Ui.Controls.Button;
 
 namespace LenovoLegionToolkit.WPF.Utils;
 
@@ -99,6 +100,19 @@ public static class MessageBoxHelper
             MaxHeight = double.PositiveInfinity,
             ResizeMode = ResizeMode.NoResize
         };
+
+        if (secondaryButton == string.Empty)
+        {
+            var okButton = new Button
+            {
+                Content = primaryButton ?? Resource.OK,
+                Appearance = ControlAppearance.Primary,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Command = messageBox.TemplateButtonCommand,
+                CommandParameter = "left"
+            };
+            messageBox.Footer = okButton;
+        }
 
         messageBox.ButtonLeftClick += (_, _) =>
         {
