@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using LenovoLegionToolkit.Lib;
 using LenovoLegionToolkit.Lib.Extensions;
+using LenovoLegionToolkit.Lib.Settings;
 using LenovoLegionToolkit.Lib.Utils;
 using LenovoLegionToolkit.WPF.Controls;
 using Wpf.Ui.Controls;
@@ -123,6 +124,17 @@ public partial class StandaloneFanCurvePage : UiPage
         {
             _fanCurveManager.UpdateConfig(fanType, entry);
             _fanCurveManager.UpdateGlobalSettings(entry);
+
+            var fanSettings = IoCContainer.Resolve<FanCurveSettings>();
+            fanSettings.Store.Entries.Clear();
+            foreach (var control in _fanCurveControls)
+            {
+                if (control.GetCurveEntry() is { } currentEntry)
+                {
+                    fanSettings.Store.Entries.Add(currentEntry);
+                }
+            }
+            fanSettings.Save();
         };
 
         _fanCurveManager.RegisterViewModel(fanType, ctrl);

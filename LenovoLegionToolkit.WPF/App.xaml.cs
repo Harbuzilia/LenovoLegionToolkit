@@ -848,11 +848,12 @@ public partial class App
             fanManager.Initialize();
 
             var fanSettings = IoCContainer.Resolve<FanCurveSettings>();
-            if (fanSettings.Store.Entries.Count > 0)
+            if (fanSettings.Store.Entries.Count == 0)
             {
-                Log.Instance.Trace($"Applying {fanSettings.Store.Entries.Count} fan curves from settings...");
-                await fanManager.LoadAndApply(fanSettings.Store.Entries).ConfigureAwait(false);
+                fanSettings.Save();
             }
+            Log.Instance.Trace($"Applying {fanSettings.Store.Entries.Count} fan curves from settings...");
+            await fanManager.LoadAndApply(fanSettings.Store.Entries).ConfigureAwait(false);
         }
         catch (InvalidOperationException)
         {
