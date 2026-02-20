@@ -27,6 +27,7 @@ public partial class SettingsAppBehaviorControl
 {
     private readonly ApplicationSettings _settings = IoCContainer.Resolve<ApplicationSettings>();
     private readonly AutomationProcessor _automationProcessor = IoCContainer.Resolve<AutomationProcessor>();
+    private readonly FloatingGadgetSettings _floatingGadgetSettings = IoCContainer.Resolve<FloatingGadgetSettings>();
 
     private bool _isRefreshing = true;
 
@@ -66,9 +67,9 @@ public partial class SettingsAppBehaviorControl
         _detectionModeComboBox.SelectedItem = selectedItem;
 
         // Floating Gadgets
-        _floatingGadgetsToggle.IsChecked = _settings.Store.ShowFloatingGadgets;
-        _floatingGadgetsStyleComboBox.SelectedIndex = _settings.Store.SelectedStyleIndex;
-        _floatingGadgetsInterval.Value = _settings.Store.FloatingGadgetsRefreshInterval;
+        _floatingGadgetsToggle.IsChecked = _floatingGadgetSettings.Store.ShowFloatingGadgets;
+        _floatingGadgetsStyleComboBox.SelectedIndex = _floatingGadgetSettings.Store.SelectedStyleIndex;
+        _floatingGadgetsInterval.Value = _floatingGadgetSettings.Store.FloatingGadgetsRefreshInterval;
 
         _autorunComboBox.Visibility = Visibility.Visible;
         _minimizeToTrayToggle.Visibility = Visibility.Visible;
@@ -317,8 +318,8 @@ public partial class SettingsAppBehaviorControl
                     }
 
                     _floatingGadgetsToggle.IsChecked = false;
-                    _settings.Store.ShowFloatingGadgets = false;
-                    _settings.SynchronizeStore();
+                    _floatingGadgetSettings.Store.ShowFloatingGadgets = false;
+                    _floatingGadgetSettings.SynchronizeStore();
                     return;
                 }
             }
@@ -329,11 +330,11 @@ public partial class SettingsAppBehaviorControl
             {
                 if (App.Current.FloatingGadget == null)
                 {
-                    if (_settings.Store.SelectedStyleIndex == 0)
+                    if (_floatingGadgetSettings.Store.SelectedStyleIndex == 0)
                     {
                         floatingGadget = new FloatingGadget();
                     }
-                    else if (_settings.Store.SelectedStyleIndex == 1)
+                    else if (_floatingGadgetSettings.Store.SelectedStyleIndex == 1)
                     {
                         floatingGadget = new FloatingGadgetUpper();
                     }
@@ -348,11 +349,11 @@ public partial class SettingsAppBehaviorControl
                 {
                     bool needsStyleUpdate = false;
 
-                    if (_settings.Store.SelectedStyleIndex == 0 && App.Current.FloatingGadget.GetType() != typeof(FloatingGadget))
+                    if (_floatingGadgetSettings.Store.SelectedStyleIndex == 0 && App.Current.FloatingGadget.GetType() != typeof(FloatingGadget))
                     {
                         needsStyleUpdate = true;
                     }
-                    else if (_settings.Store.SelectedStyleIndex == 1 && App.Current.FloatingGadget.GetType() != typeof(FloatingGadgetUpper))
+                    else if (_floatingGadgetSettings.Store.SelectedStyleIndex == 1 && App.Current.FloatingGadget.GetType() != typeof(FloatingGadgetUpper))
                     {
                         needsStyleUpdate = true;
                     }
@@ -361,11 +362,11 @@ public partial class SettingsAppBehaviorControl
                     {
                         App.Current.FloatingGadget.Close();
 
-                        if (_settings.Store.SelectedStyleIndex == 0)
+                        if (_floatingGadgetSettings.Store.SelectedStyleIndex == 0)
                         {
                             floatingGadget = new FloatingGadget();
                         }
-                        else if (_settings.Store.SelectedStyleIndex == 1)
+                        else if (_floatingGadgetSettings.Store.SelectedStyleIndex == 1)
                         {
                             floatingGadget = new FloatingGadgetUpper();
                         }
@@ -393,16 +394,16 @@ public partial class SettingsAppBehaviorControl
                 }
             }
 
-            _settings.Store.ShowFloatingGadgets = state.Value;
-            _settings.SynchronizeStore();
+            _floatingGadgetSettings.Store.ShowFloatingGadgets = state.Value;
+            _floatingGadgetSettings.SynchronizeStore();
         }
         catch (Exception ex)
         {
             Log.Instance.Trace($"FloatingGadgets_Click error: {ex.Message}");
 
             _floatingGadgetsToggle.IsChecked = false;
-            _settings.Store.ShowFloatingGadgets = false;
-            _settings.SynchronizeStore();
+            _floatingGadgetSettings.Store.ShowFloatingGadgets = false;
+            _floatingGadgetSettings.SynchronizeStore();
         }
     }
 
@@ -411,8 +412,8 @@ public partial class SettingsAppBehaviorControl
         if (_isRefreshing)
             return;
 
-        _settings.Store.FloatingGadgetsRefreshInterval = (int)(_floatingGadgetsInterval.Value ?? 1);
-        _settings.SynchronizeStore();
+        _floatingGadgetSettings.Store.FloatingGadgetsRefreshInterval = (int)(_floatingGadgetsInterval.Value ?? 1);
+        _floatingGadgetSettings.SynchronizeStore();
     }
 
     private void StyleComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -422,10 +423,10 @@ public partial class SettingsAppBehaviorControl
 
         try
         {
-            _settings.Store.SelectedStyleIndex = _floatingGadgetsStyleComboBox.SelectedIndex;
-            _settings.SynchronizeStore();
+            _floatingGadgetSettings.Store.SelectedStyleIndex = _floatingGadgetsStyleComboBox.SelectedIndex;
+            _floatingGadgetSettings.SynchronizeStore();
 
-            if (_settings.Store.ShowFloatingGadgets && App.Current.FloatingGadget != null)
+            if (_floatingGadgetSettings.Store.ShowFloatingGadgets && App.Current.FloatingGadget != null)
             {
                 var styleTypeMapping = new Dictionary<int, Type>
                 {
@@ -439,7 +440,7 @@ public partial class SettingsAppBehaviorControl
                     [1] = () => new FloatingGadgetUpper()
                 };
 
-                int selectedStyle = _settings.Store.SelectedStyleIndex;
+                int selectedStyle = _floatingGadgetSettings.Store.SelectedStyleIndex;
                 if (styleTypeMapping.TryGetValue(selectedStyle, out Type? targetType) &&
                     App.Current.FloatingGadget.GetType() != targetType)
                 {
@@ -458,7 +459,7 @@ public partial class SettingsAppBehaviorControl
             Log.Instance.Trace($"StyleComboBox_SelectionChanged error: {ex.Message}");
 
             _isRefreshing = true;
-            _floatingGadgetsStyleComboBox.SelectedIndex = _settings.Store.SelectedStyleIndex;
+            _floatingGadgetsStyleComboBox.SelectedIndex = _floatingGadgetSettings.Store.SelectedStyleIndex;
             _isRefreshing = false;
         }
     }

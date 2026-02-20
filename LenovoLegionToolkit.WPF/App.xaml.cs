@@ -531,7 +531,7 @@ public partial class App
             FloatingGadget = null;
         }
 
-        var settingsStore = IoCContainer.Resolve<ApplicationSettings>().Store;
+        var settingsStore = IoCContainer.Resolve<FloatingGadgetSettings>().Store;
 
         if (!settingsStore.ShowFloatingGadgets) return;
 
@@ -760,9 +760,10 @@ public partial class App
     private static async Task InitSensorsGroupControllerFeatureAsync()
     {
         var settings = IoCContainer.Resolve<ApplicationSettings>();
+        var floatingGadgetSettings = IoCContainer.Resolve<FloatingGadgetSettings>();
         try
         {
-            if (settings.Store is { UseNewSensorDashboard: false, ShowFloatingGadgets: false }) return;
+            if (settings.Store is { UseNewSensorDashboard: false } && floatingGadgetSettings.Store is { ShowFloatingGadgets: false }) return;
 
             var state = await IoCContainer.Resolve<SensorsGroupController>().IsSupportedAsync();
             if (state is not (LibreHardwareMonitorInitialState.Initialized or LibreHardwareMonitorInitialState.Success))
@@ -874,9 +875,9 @@ public partial class App
         MessagingCenter.Subscribe<FloatingGadgetChangedMessage>(this,
             message => { Dispatcher.Invoke(() => HandleFloatingGadgetCommand(message.State)); });
 
-        var settings = IoCContainer.Resolve<ApplicationSettings>();
+        var floatingGadgetSettings = IoCContainer.Resolve<FloatingGadgetSettings>();
 
-        if (settings.Store.ShowFloatingGadgets)
+        if (floatingGadgetSettings.Store.ShowFloatingGadgets)
         {
             HandleFloatingGadgetCommand(FloatingGadgetState.Show);
         }
@@ -884,8 +885,8 @@ public partial class App
 
     private void HandleFloatingGadgetCommand(FloatingGadgetState command)
     {
-        var settings = IoCContainer.Resolve<ApplicationSettings>();
-        bool shouldBeUpper = settings.Store.SelectedStyleIndex == 1;
+        var floatingGadgetSettings = IoCContainer.Resolve<FloatingGadgetSettings>();
+        bool shouldBeUpper = floatingGadgetSettings.Store.SelectedStyleIndex == 1;
 
         switch (command)
         {
@@ -911,7 +912,8 @@ public partial class App
                 break;
         }
 
-        settings.Store.ShowFloatingGadgets = FloatingGadget?.IsVisible ?? false;
+        floatingGadgetSettings.Store.ShowFloatingGadgets = FloatingGadget?.IsVisible ?? false;
+        floatingGadgetSettings.SynchronizeStore();
     }
 
     private void EnsureCorrectGadgetType(bool shouldBeUpper)

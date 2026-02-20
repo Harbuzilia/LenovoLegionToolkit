@@ -54,11 +54,8 @@ public class ApplicationSettings : AbstractSettings<ApplicationSettingsStore>
         public bool UseNewSensorDashboard { get; set; }
         public bool LockWindowSize { get; set; }
         public bool EnableLogging { get; set; }
-        public bool ShowFloatingGadgets { get; set; }
-        public int FloatingGadgetsRefreshInterval { get; set; } = 1;
         public string BackGroundImageFilePath { get; set; } = string.Empty;
         public double Opacity { get; set; } = 1.0f;
-        public int SelectedStyleIndex { get; set; } = 0;
         public List<string> ExcludedProcesses { get; set; } = [];
         public GameDetectionSettings GameDetection { get; set; } = new();
         public bool DynamicLightingWarningDontShowAgain { get; set; }

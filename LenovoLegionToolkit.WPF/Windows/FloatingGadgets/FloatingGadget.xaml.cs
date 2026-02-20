@@ -512,7 +512,7 @@ public partial class FloatingGadget
                 }
 
                 var elapsed = DateTime.Now - loopStart;
-                var delay = TimeSpan.FromSeconds(_settings.Store.FloatingGadgetsRefreshInterval) - elapsed;
+                var delay = TimeSpan.FromSeconds(_floatingGadgetSettings.Store.FloatingGadgetsRefreshInterval) - elapsed;
                 if (delay > TimeSpan.Zero)
                 {
                     await Task.Delay(delay, token);

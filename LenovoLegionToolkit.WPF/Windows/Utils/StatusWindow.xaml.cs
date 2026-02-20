@@ -96,6 +96,8 @@ public partial class StatusWindow
         catch { }
     }
 
+    private readonly FloatingGadgetSettings _floatingGadgetSettings = IoCContainer.Resolve<FloatingGadgetSettings>();
+
     public StatusWindow()
     {
         InitializeComponent();
@@ -168,7 +170,7 @@ public partial class StatusWindow
         if (IsVisible)
         {
             _sensorsGroupController.SensorsUpdated += OnSensorsUpdated;
-            _sensorsGroupController.Start(this, TimeSpan.FromSeconds(_settings.Store.FloatingGadgetsRefreshInterval));
+            _sensorsGroupController.Start(this, TimeSpan.FromSeconds(_floatingGadgetSettings.Store.FloatingGadgetsRefreshInterval));
         }
         else
         {

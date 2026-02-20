@@ -234,7 +234,7 @@ public partial class FloatingGadgetUpper
             UpdateGadgetControlsVisibility();
 
             _sensorsGroupControllers.SensorsUpdated += OnSensorsUpdated;
-            _sensorsGroupControllers.Start(this, TimeSpan.FromSeconds(_settings.Store.FloatingGadgetsRefreshInterval));
+            _sensorsGroupControllers.Start(this, TimeSpan.FromSeconds(_floatingGadgetSettings.Store.FloatingGadgetsRefreshInterval));
         }
         else
         {
@@ -548,7 +548,7 @@ public partial class FloatingGadgetUpper
 
     private async void OnSensorsUpdated(object? sender, EventArgs e)
     {
-        var interval = TimeSpan.FromSeconds(_settings.Store.FloatingGadgetsRefreshInterval);
+        var interval = TimeSpan.FromSeconds(_floatingGadgetSettings.Store.FloatingGadgetsRefreshInterval);
         if (DateTime.Now - _lastUpdate < interval) return;
 
         _lastUpdate = DateTime.Now;

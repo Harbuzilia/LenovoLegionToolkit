@@ -11,6 +11,9 @@ public class FloatingGadgetSettings() : AbstractSettings<FloatingGadgetSettingsS
 {
     public class FloatingGadgetSettingsStore
     {
+        public bool ShowFloatingGadgets { get; set; }
+        public int FloatingGadgetsRefreshInterval { get; set; } = 1;
+        public int SelectedStyleIndex { get; set; } = 0;
         public List<FloatingGadgetItem> Items { get; set; } = [];
     }
 
@@ -29,14 +32,33 @@ public class FloatingGadgetSettings() : AbstractSettings<FloatingGadgetSettingsS
             var json = File.ReadAllText(oldSettingsPath);
             var jObject = JsonConvert.DeserializeObject<JObject>(json, JsonSerializerSettings);
             var itemsToken = jObject?["FloatingGadgetItems"];
-            if (itemsToken == null)
-                return null;
+            
+            var migrated = new FloatingGadgetSettingsStore();
 
-            var items = itemsToken.ToObject<List<FloatingGadgetItem>>();
-            if (items is not { Count: > 0 })
-                return null;
+            if (jObject?["ShowFloatingGadgets"] is { } showToken)
+            {
+                migrated.ShowFloatingGadgets = showToken.ToObject<bool>();
+            }
 
-            var migrated = new FloatingGadgetSettingsStore { Items = items };
+            if (jObject?["FloatingGadgetsRefreshInterval"] is { } intervalToken)
+            {
+                migrated.FloatingGadgetsRefreshInterval = intervalToken.ToObject<int>();
+                if (migrated.FloatingGadgetsRefreshInterval < 1)
+                    migrated.FloatingGadgetsRefreshInterval = 1;
+            }
+
+            if (jObject?["SelectedStyleIndex"] is { } styleToken)
+            {
+                migrated.SelectedStyleIndex = styleToken.ToObject<int>();
+            }
+
+            if (itemsToken != null)
+            {
+                var items = itemsToken.ToObject<List<FloatingGadgetItem>>();
+                if (items is { Count: > 0 })
+                    migrated.Items = items;
+            }
+
             Store = migrated;
             Save();
 
