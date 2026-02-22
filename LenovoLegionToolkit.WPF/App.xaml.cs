@@ -87,7 +87,7 @@ public partial class App
     {
         try
         {
-            InitializeCoreEnvironment(e);
+            await InitializeCoreEnvironmentAsync(e);
             await InitializeSettingsAndCompatibilityAsync();
             await InitializeHardwareAndFeaturesAsync();
             var deferredInitTask = StartBackgroundServicesAsync();
@@ -123,7 +123,7 @@ public partial class App
         }
     }
 
-    private void InitializeCoreEnvironment(StartupEventArgs e)
+    private async Task InitializeCoreEnvironmentAsync(StartupEventArgs e)
     {
 #if DEBUG
         if (Debugger.IsAttached)
@@ -141,7 +141,9 @@ public partial class App
 
         AppFlags.Initialize(e.Args);
         Log.Instance.IsTraceEnabled = AppFlags.Instance.IsTraceEnabled;
-        Compatibility.PrintMachineInfoAsync().ConfigureAwait(false);
+        
+        await Compatibility.PrintMachineInfoAsync().ConfigureAwait(false);
+        
         SetupExceptionHandling();
 
         if (AppFlags.Instance.Debug)

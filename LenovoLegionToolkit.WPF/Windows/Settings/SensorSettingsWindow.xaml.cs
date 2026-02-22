@@ -31,6 +31,8 @@ public partial class SensorSettingsWindow
     {
         _sensorsSettings.Store.ShowCpuAverageFrequency = false;
         _sensorsSettings.Store.SelectedGpuIsIgpu = false;
+        _cpuFrequencySelector.SelectedIndex = 0;
+        _gpuSelector.SelectedIndex = 0;
         _sensorsSettings.SynchronizeStore();
 
         Close();
