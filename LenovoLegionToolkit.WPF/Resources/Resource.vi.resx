@@ -497,9 +497,6 @@ Chỉ có các Hành động thỏa điều kiện hiện tại sẽ được ch
   <data name="BatteryPage_ACAdapterConnectedNotCharging" xml:space="preserve">
     <value>Đã nối với nguồn điện, đang không sạc</value>
   </data>
-  <data name="BatteryPage_ACAdapterNotConnected" xml:space="preserve">
-    <value>Chưa cắm sạc</value>
-  </data>
   <data name="BatteryPage_BatteryHealth_Message" xml:space="preserve">
     <value>Dung lượng sạc tối đa của pin.</value>
   </data>
@@ -684,14 +681,8 @@ Chuyển đổi giữa các chế độ có thể cần phải khởi động l�
   <data name="CompatibilityCheckError_Message" xml:space="preserve">
     <value>Lỗi đã xảy ra khi đọc thông tin thiết bị.</value>
   </data>
-  <data name="ContextMenu_QuickActions" xml:space="preserve">
-    <value>Phím tắt Hành động</value>
-  </data>
   <data name="Continue" xml:space="preserve">
     <value>Tiếp tục</value>
-  </data>
-  <data name="CopiedToClipboard_Message" xml:space="preserve">
-    <value>Đã chép vào bộ nhớ tạm.</value>
   </data>
   <data name="CopiedToClipboard_Message_WithParam" xml:space="preserve">
     <value>"{0}" sao chép vào clipboard.</value>
@@ -713,9 +704,6 @@ Chuyển đổi giữa các chế độ có thể cần phải khởi động l�
   </data>
   <data name="CustomFanCurve_Accelerate_Tooltip" xml:space="preserve">
     <value>Accelerate control's how much PWM is added to the current PWM Value.</value>
-  </data>
-  <data name="CustomFanCurve_Add_Point" xml:space="preserve">
-    <value>Add curve point</value>
   </data>
   <data name="CustomFanCurve_Critical_Temp" xml:space="preserve">
     <value>Critical Temp</value>
@@ -787,9 +775,6 @@ CẢNH BÁO: Hành động sẽ không chạy đúng nếu màn hình laptop kh�
   </data>
   <data name="Delete" xml:space="preserve">
     <value>Xóa</value>
-  </data>
-  <data name="DeselectAll" xml:space="preserve">
-    <value>Bỏ chọn tất cả</value>
   </data>
   <data name="DeviceAutomationPipelineTriggerTabItemContent_OnlyConnected" xml:space="preserve">
     <value>Chỉ hiển thị các thiết bị đang kết nối</value>
@@ -1063,9 +1048,6 @@ CẢNH BÁO! Hành động này sẽ không chạy nếu màn hình laptop tắt
   </data>
   <data name="FloatingGadgets_Disk_1_Temperature" xml:space="preserve">
     <value>Nhiệt độ ổ cứng 2</value>
-  </data>
-  <data name="FloatingGadgets_Fans" xml:space="preserve">
-    <value>Quạt</value>
   </data>
   <data name="FloatingGadgets_Fps" xml:space="preserve">
     <value>FPS</value>
@@ -1467,9 +1449,6 @@ Chọn Có để tắt và Không để bỏ qua.</value>
   </data>
   <data name="MacroSequenceControl_Repeat_Title" xml:space="preserve">
     <value>Lặp lại</value>
-  </data>
-  <data name="MacroSequenceControl_StopRecording" xml:space="preserve">
-    <value>Dừng Ghi</value>
   </data>
   <data name="MainWindows_FnKeysRunning" xml:space="preserve">
     <value>Lenovo Hotkeys đang chạy ngầm.</value>
@@ -1978,9 +1957,6 @@ Bạn có thể chuyển đổi giữa các Chế độ với Fn+Q.</value>
   <data name="QuickActionAutomationStepControl_Title" xml:space="preserve">
     <value>Phím tắt Hành động</value>
   </data>
-  <data name="ReadmeWindow_Title" xml:space="preserve">
-    <value>Readme</value>
-  </data>
   <data name="Refresh" xml:space="preserve">
     <value>Làm mới</value>
   </data>
@@ -2124,9 +2100,6 @@ Hãy đảm bảo chương trình hoặc script của bạn chạy đúng trư�
   <data name="Saving" xml:space="preserve">
     <value>Đang lưu...</value>
   </data>
-  <data name="SelectAll" xml:space="preserve">
-    <value>Chọn tất cả</value>
-  </data>
   <data name="SelectSmartKeyPipelinesWindow_List_Description" xml:space="preserve">
     <value>Chọn một hoặc nhiều hành động nhanh để thực hiện trong 1 vòng lặp</value>
   </data>
@@ -2256,9 +2229,6 @@ Hãy đảm bảo chương trình hoặc script của bạn chạy đúng trư�
   <data name="SensorsControl_Utilization_Title" xml:space="preserve">
     <value>Mức sử dụng</value>
   </data>
-  <data name="SensorsControl_VrTemperature_Title" xml:space="preserve">
-    <value>Nhiệt độ VRM</value>
-  </data>
   <data name="SensorSettingsPage_Average_Frequency_Title" xml:space="preserve">
     <value>Average Frequency</value>
   </data>
@@ -2379,9 +2349,6 @@ Hãy đảm bảo chương trình hoặc script của bạn chạy đúng trư�
   <data name="SettingsPage_ClearBackgroundImage_Title" xml:space="preserve">
     <value>Ảnh đã được xoá</value>
   </data>
-  <data name="SettingsPage_Clear_BackgroundImage_Message" xml:space="preserve">
-    <value>Xóa tệp hình ảnh đang chọn.</value>
-  </data>
   <data name="SettingsPage_Clear_BackgroundImage_Title" xml:space="preserve">
     <value>Xóa ảnh</value>
   </data>
@@ -2489,9 +2456,6 @@ Nên khởi động lại sau khi thay đổi tùy chọn này.</value>
   <data name="SettingsPage_EnableVantage_Error_Title" xml:space="preserve">
     <value>Không thể kích hoạt Lenovo Vantage và/hoặc ImController</value>
   </data>
-  <data name="SettingsPage_ExcludeProcesses_Message" xml:space="preserve">
-    <value>Manage processes that are ignored by Game Detection.</value>
-  </data>
   <data name="SettingsPage_ExcludeProcesses_Title" xml:space="preserve">
     <value>Excluded Processes</value>
   </data>
@@ -2537,9 +2501,6 @@ Nên khởi động lại sau khi thay đổi tùy chọn này.</value>
   <data name="SettingsPage_HWiNFO_Title" xml:space="preserve">
     <value>HWiNFO64</value>
   </data>
-  <data name="SettingsPage_Integrations_Title" xml:space="preserve">
-    <value>Tích hợp</value>
-  </data>
   <data name="SettingsPage_Language_Message" xml:space="preserve">
     <value>Chọn ngôn ngữ.</value>
   </data>
@@ -2582,9 +2543,6 @@ Nên khởi động lại sau khi thay đổi tùy chọn này.</value>
   <data name="SettingsPage_PowerModeMapping_Title" xml:space="preserve">
     <value>Đồng bộ hóa Chế độ Năng lượng</value>
   </data>
-  <data name="SettingsPage_Power_Title" xml:space="preserve">
-    <value>Nguồn</value>
-  </data>
   <data name="SettingsPage_Select_BackgroundImage_AllFiles" xml:space="preserve">
     <value>Tất cả tệp</value>
   </data>
@@ -2593,9 +2551,6 @@ Nên khởi động lại sau khi thay đổi tùy chọn này.</value>
   </data>
   <data name="SettingsPage_Select_BackgroundImage_ImageFile" xml:space="preserve">
     <value>Tệp hình ảnh</value>
-  </data>
-  <data name="SettingsPage_Select_BackgroundImage_Title" xml:space="preserve">
-    <value>Chọn hình nền</value>
   </data>
   <data name="SettingsPage_SensorSettings_Message" xml:space="preserve">
     <value>Edit sensor data acquisition and display settings.</value>
@@ -2650,9 +2605,6 @@ Nên khởi động lại sau khi thay đổi tùy chọn này.</value>
   </data>
   <data name="SettingsPage_UpdateMethod_Title" xml:space="preserve">
     <value>Update Method</value>
-  </data>
-  <data name="SettingsPage_Update_Title" xml:space="preserve">
-    <value>Cập nhật</value>
   </data>
   <data name="SettingsPage_UseNewDashboard_Restart_Message" xml:space="preserve">
     <value>Khởi động lại để áp dụng các thay đổi.</value>
@@ -2950,9 +2902,6 @@ Logging sẽ được tự động bật, nếu bạn chọn tiếp tục.</valu
   <data name="UnsupportedWindow_Disclaimer_GitHub" xml:space="preserve">
     <value>Hãy truy cập trang của dự án trên GitHub để biết thêm thông tin.</value>
   </data>
-  <data name="UnsupportedWindow_Disclaimer_Logs" xml:space="preserve">
-    <value>Thư mục log</value>
-  </data>
   <data name="UnsupportedWindow_MachineType" xml:space="preserve">
     <value>Mã máy</value>
   </data>
@@ -2997,9 +2946,6 @@ Logging sẽ được tự động bật, nếu bạn chọn tiếp tục.</valu
   </data>
   <data name="WiFiConnectedPipelineTriggerTabItemContent_LeaveEmptyForAnyNetwork" xml:space="preserve">
     <value>Bỏ trống cho bất kì mạng Wi-Fi nào.</value>
-  </data>
-  <data name="WiFiConnectedPipelineTriggerTabItemContent_NetworkName" xml:space="preserve">
-    <value>Tên mạng (SSID)</value>
   </data>
   <data name="WindowsPowerModesWindow_Title" xml:space="preserve">
     <value>Chế độ nguồn</value>
