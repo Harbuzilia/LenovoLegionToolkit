@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
+using static LenovoLegionToolkit.Lib.Settings.ApplicationSettings;
 
 namespace LenovoLegionToolkit.Lib.Settings;
 
-public class ApplicationSettings : AbstractSettings<ApplicationSettings.ApplicationSettingsStore>
+public class ApplicationSettings : AbstractSettings<ApplicationSettingsStore>
 {
     public class Notifications
     {
@@ -50,21 +51,18 @@ public class ApplicationSettings : AbstractSettings<ApplicationSettings.Applicat
         public bool SynchronizeBrightnessToAllPowerPlans { get; set; }
         public ModifierKey SmartFnLockFlags { get; set; }
         public bool ResetBatteryOnSinceTimerOnReboot { get; set; }
-        public UpdateMethod UpdateMethod { get; set; }
         public bool UseNewSensorDashboard { get; set; }
+        public bool EnableHardwareSensors { get; set; }
         public bool LockWindowSize { get; set; }
         public bool EnableLogging { get; set; }
-        public bool ShowFloatingGadgets { get; set; }
-        public int FloatingGadgetsRefreshInterval { get; set; }
         public string BackGroundImageFilePath { get; set; } = string.Empty;
         public double Opacity { get; set; } = 1.0f;
-        public int SelectedStyleIndex { get; set; } = 0;
-        public List<FloatingGadgetItem> FloatingGadgetItems { get; set; } = [];
-
         public List<string> ExcludedProcesses { get; set; } = [];
         public GameDetectionSettings GameDetection { get; set; } = new();
         public bool DynamicLightingWarningDontShowAgain { get; set; }
         public bool CustomModeWarningDontShowAgain { get; set; }
+        public bool EnableHardwareAcceleration { get; set; }
+        public WindowBackdropType BackdropType { get; set; } = WindowBackdropType.Mica;
     }
 
     public class GameDetectionSettings

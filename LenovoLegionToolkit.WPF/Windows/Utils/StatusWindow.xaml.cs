@@ -38,7 +38,7 @@ public partial class StatusWindow
     private readonly GPUController _gpuController = IoCContainer.Resolve<GPUController>();
     private readonly BatteryFeature _batteryFeature = IoCContainer.Resolve<BatteryFeature>();
     private readonly UpdateChecker _updateChecker = IoCContainer.Resolve<UpdateChecker>();
-    private readonly UpdateCheckSettings _updateCheckerSettings = IoCContainer.Resolve<UpdateCheckSettings>();
+    private readonly UpdateSettings _updateSettings = IoCContainer.Resolve<UpdateSettings>();
     private readonly SensorsController _sensorsController = IoCContainer.Resolve<SensorsController>();
     private readonly SensorsGroupController _sensorsGroupController = IoCContainer.Resolve<SensorsGroupController>();
 
@@ -96,6 +96,8 @@ public partial class StatusWindow
         catch { }
     }
 
+    private readonly FloatingGadgetSettings _floatingGadgetSettings = IoCContainer.Resolve<FloatingGadgetSettings>();
+
     public StatusWindow()
     {
         InitializeComponent();
@@ -103,7 +105,6 @@ public partial class StatusWindow
         IsVisibleChanged += StatusWindow_IsVisibleChanged;
         WindowStyle = WindowStyle.None;
         WindowStartupLocation = WindowStartupLocation.Manual;
-        WindowBackdropType = BackgroundType.None;
         ResizeMode = ResizeMode.NoResize;
         SizeToContent = SizeToContent.WidthAndHeight;
         Focusable = false;
@@ -125,7 +126,7 @@ public partial class StatusWindow
     {
         if (!_machineInfo.HasValue) return;
 
-        var useSensors = _settings.Store.UseNewSensorDashboard;
+        var useSensors = _settings.Store.EnableHardwareSensors;
         var sensorVis = useSensors ? Visibility.Visible : Visibility.Collapsed;
 
         _cpuGrid.Visibility = sensorVis;
@@ -134,10 +135,8 @@ public partial class StatusWindow
         _cpuFanAndPowerDesc.Visibility = sensorVis;
         _cpuFanAndPowerLabel.Visibility = sensorVis;
 
-        // Use cached controller type to avoid blocking UI thread
-        var isV4V5 = _cachedControllerType == typeof(SensorsControllerV4) ||
-                     _cachedControllerType == typeof(SensorsControllerV5);
-        _systemFanGrid.Visibility = (useSensors && isV4V5) ? Visibility.Visible : Visibility.Collapsed;
+        var isV5 = _cachedControllerType == typeof(SensorsControllerV5);
+        _systemFanGrid.Visibility = (useSensors && isV5) ? Visibility.Visible : Visibility.Collapsed;
 
         if (gpuStatus.HasValue)
         {
@@ -170,7 +169,7 @@ public partial class StatusWindow
         if (IsVisible)
         {
             _sensorsGroupController.SensorsUpdated += OnSensorsUpdated;
-            _sensorsGroupController.Start(this, TimeSpan.FromSeconds(_settings.Store.FloatingGadgetsRefreshInterval));
+            _sensorsGroupController.Start(this, TimeSpan.FromSeconds(_floatingGadgetSettings.Store.FloatingGadgetsRefreshInterval));
         }
         else
         {
@@ -232,26 +231,23 @@ public partial class StatusWindow
         tasks.Add(Task.Run(async () => { try { if (_gpuController.IsSupported()) gpuStatus = await _gpuController.RefreshNowAsync().WaitAsync(token); } catch { } }, token));
         tasks.Add(Task.Run(() => { try { batteryInfo = Battery.GetBatteryInformation(); } catch { } }, token));
         tasks.Add(Task.Run(async () => { try { if (await _batteryFeature.IsSupportedAsync().WaitAsync(token)) batteryState = await _batteryFeature.GetStateAsync().WaitAsync(token); } catch { } }, token));
-        tasks.Add(Task.Run(async () => { try { if (_updateCheckerSettings.Store.UpdateCheckFrequency != UpdateCheckFrequency.Never) hasUpdate = await _updateChecker.CheckAsync(false).WaitAsync(token) is not null; } catch { } }, token));
+        tasks.Add(Task.Run(async () => { try { if (_updateSettings.Store.UpdateCheckFrequency != UpdateCheckFrequency.Never) hasUpdate = await _updateChecker.CheckAsync(false).WaitAsync(token) is not null; } catch { } }, token));
 
         await Task.WhenAll(tasks).ConfigureAwait(false);
 
-        if (!_settings.Store.UseNewSensorDashboard) return new(state, mode, godModePresetName, gpuStatus, batteryInfo, batteryState, hasUpdate, sensorsData, cpuPower, gpuPower);
+        if (!_settings.Store.EnableHardwareSensors) return new(state, mode, godModePresetName, gpuStatus, batteryInfo, batteryState, hasUpdate, sensorsData, cpuPower, gpuPower);
 
         try
         {
             if (await _sensorsController.IsSupportedAsync().WaitAsync(token))
             {
-                // Cache the controller type for synchronous UI access
                 var controller = await _sensorsController.GetControllerAsync().WaitAsync(token);
                 _cachedControllerType = controller?.GetType();
                 
                 sensorsData = await _sensorsController.GetDataAsync().WaitAsync(token);
             }
-            // SGC data - assume accessed via getters which return cached values from Producer Loop
             if (await _sensorsGroupController.IsSupportedAsync().WaitAsync(token) is LibreHardwareMonitorInitialState.Success or LibreHardwareMonitorInitialState.Initialized)
-            {
-                // Do NOT call UpdateAsync here, as it's driven by Producer
+            {    
                 cpuPower = await _sensorsGroupController.GetCpuPowerAsync().WaitAsync(token);
                 gpuPower = await _sensorsGroupController.GetGpuPowerAsync().WaitAsync(token);
                 cpuClock = await _sensorsGroupController.GetCpuCoreClockAsync().WaitAsync(token);
@@ -272,13 +268,13 @@ public partial class StatusWindow
         UpdateUiLayout(data.GPUStatus);
         RefreshPowerMode(data.PowerModeState, data.ITSMode, data.GodModePresetName);
 
-        var useSensors = _settings.Store.UseNewSensorDashboard;
+        var useSensors = _settings.Store.EnableHardwareSensors;
 
         if (useSensors)
         {
             UpdateFreqAndTemp(_cpuFreqAndTempLabel, data.CpuClock, data.CpuTemp);
             UpdateFanAndPower(_cpuFanAndPowerLabel, data.SensorsData?.CPU.FanSpeed ?? -1, data.CpuPower);
-            // Use cached controller type to avoid blocking UI thread
+            
             if (_cachedControllerType == typeof(SensorsControllerV4) ||
                 _cachedControllerType == typeof(SensorsControllerV5))
             {

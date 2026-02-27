@@ -99,10 +99,10 @@ public static class LocalizationHelper
             {
                 await SaveLanguageToFileAsync(cultureInfo);
 
-                // If install language is Simplified Chinese, set update method to Server instead of Github.
+                // If install language is Simplified Chinese, set update method to Server instead of GitHub.
                 if (cultureInfo is { IetfLanguageTag: "zh-Hans" })
                 {
-                    var settings = IoCContainer.Resolve<ApplicationSettings>();
+                    var settings = IoCContainer.Resolve<UpdateSettings>();
                     settings.Store.UpdateMethod = UpdateMethod.Server;
                     settings.SynchronizeStore();
                 }

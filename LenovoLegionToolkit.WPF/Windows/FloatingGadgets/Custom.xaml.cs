@@ -9,6 +9,7 @@ using LenovoLegionToolkit.Lib.Extensions;
 using LenovoLegionToolkit.Lib.Messaging;
 using LenovoLegionToolkit.Lib.Messaging.Messages;
 using LenovoLegionToolkit.Lib.Settings;
+using LenovoLegionToolkit.Lib.Utils;
 using LenovoLegionToolkit.WPF.Resources;
 
 namespace LenovoLegionToolkit.WPF.Windows.FloatingGadgets;
@@ -23,7 +24,7 @@ public partial class Custom
 {
     private static Custom? _instance;
 
-    private readonly ApplicationSettings _settings = IoCContainer.Resolve<ApplicationSettings>();
+    private readonly FloatingGadgetSettings _floatingGadgetSettings = IoCContainer.Resolve<FloatingGadgetSettings>();
     private readonly SensorsGroupController _controller = IoCContainer.Resolve<SensorsGroupController>();
     private bool _isInitializing = true;
 
@@ -52,6 +53,11 @@ public partial class Custom
     private void Custom_Loaded(object sender, RoutedEventArgs e)
     {
         InitializeCheckboxes();
+        
+        // Setup Interval and Style controls
+        _floatingGadgetsInterval.Value = _floatingGadgetSettings.Store.FloatingGadgetsRefreshInterval;
+        _floatingGadgetsStyleComboBox.SelectedIndex = _floatingGadgetSettings.Store.SelectedStyleIndex;
+        
         _isInitializing = false;
     }
 
@@ -79,8 +85,7 @@ public partial class Custom
             new GadgetItemGroup { Header = Resource.FloatingGadget_Custom_Chipset, Items =
                 [
                     FloatingGadgetItem.MemoryUtilization, FloatingGadgetItem.MemoryTemperature,
-                    FloatingGadgetItem.MemoryUtilization, FloatingGadgetItem.Disk1Temperature,
-                    FloatingGadgetItem.MemoryUtilization, FloatingGadgetItem.Disk2Temperature,
+                    FloatingGadgetItem.Disk1Temperature, FloatingGadgetItem.Disk2Temperature,
                     FloatingGadgetItem.PchTemperature, FloatingGadgetItem.PchFan
                 ]
             }
@@ -99,12 +104,12 @@ public partial class Custom
             }
         }
 
-        var activeItems = new HashSet<FloatingGadgetItem>(_settings.Store.FloatingGadgetItems);
+        var activeItems = new HashSet<FloatingGadgetItem>(_floatingGadgetSettings.Store.Items);
 
         if (activeItems.Count == 0)
         {
             activeItems = new HashSet<FloatingGadgetItem>(
-                _settings.Store.FloatingGadgetItems.Cast<FloatingGadgetItem>()
+                _floatingGadgetSettings.Store.Items.Cast<FloatingGadgetItem>()
             );
         }
 
@@ -157,13 +162,73 @@ public partial class Custom
             }
         }
 
-        _settings.Store.FloatingGadgetItems = selectedItems;
-        _settings.SynchronizeStore();
+        _floatingGadgetSettings.Store.Items = selectedItems;
+        _floatingGadgetSettings.SynchronizeStore();
         MessagingCenter.Publish(new FloatingGadgetElementChangedMessage(selectedItems));
     }
 
     private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
         Close();
+    }
+
+    private void FloatingGadgetsInput_ValueChanged(object sender, RoutedEventArgs e)
+    {
+        if (_isInitializing || !IsLoaded)
+            return;
+
+        _floatingGadgetSettings.Store.FloatingGadgetsRefreshInterval = (int)(_floatingGadgetsInterval.Value ?? 1);
+        _floatingGadgetSettings.SynchronizeStore();
+    }
+
+    private void StyleComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isInitializing || !IsLoaded)
+            return;
+
+        try
+        {
+            _floatingGadgetSettings.Store.SelectedStyleIndex = _floatingGadgetsStyleComboBox.SelectedIndex;
+            _floatingGadgetSettings.SynchronizeStore();
+
+            if (_floatingGadgetSettings.Store.ShowFloatingGadgets && App.Current.FloatingGadget != null)
+            {
+                var styleTypeMapping = new Dictionary<int, Type>
+                {
+                    [0] = typeof(FloatingGadget),
+                    [1] = typeof(FloatingGadgetUpper)
+                };
+
+                var constructorMapping = new Dictionary<int, Func<Window>>
+                {
+                    [0] = () => new FloatingGadget(),
+                    [1] = () => new FloatingGadgetUpper()
+                };
+
+                int selectedStyle = _floatingGadgetSettings.Store.SelectedStyleIndex;
+                if (styleTypeMapping.TryGetValue(selectedStyle, out Type? targetType) &&
+                    App.Current.FloatingGadget.GetType() != targetType)
+                {
+                    var oldGadgetPos = new Point(App.Current.FloatingGadget.Left, App.Current.FloatingGadget.Top);
+                    App.Current.FloatingGadget.Close();
+
+                    if (constructorMapping.TryGetValue(selectedStyle, out Func<Window>? constructor))
+                    {
+                        App.Current.FloatingGadget = constructor();
+                        App.Current.FloatingGadget.Left = oldGadgetPos.X;
+                        App.Current.FloatingGadget.Top = oldGadgetPos.Y;
+                        App.Current.FloatingGadget.Show();
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Instance.Trace($"StyleComboBox_SelectionChanged error: {ex.Message}");
+
+            _isInitializing = true;
+            _floatingGadgetsStyleComboBox.SelectedIndex = _floatingGadgetSettings.Store.SelectedStyleIndex;
+            _isInitializing = false;
+        }
     }
 }

@@ -1,4 +1,12 @@
-﻿using System;
+﻿using LenovoLegionToolkit.Lib;
+using LenovoLegionToolkit.Lib.Controllers.Sensors;
+using LenovoLegionToolkit.Lib.Messaging;
+using LenovoLegionToolkit.Lib.Messaging.Messages;
+using LenovoLegionToolkit.Lib.Settings;
+using LenovoLegionToolkit.Lib.Utils;
+using LenovoLegionToolkit.WPF.Resources;
+using LenovoLegionToolkit.WPF.Settings;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -9,13 +17,6 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
-using LenovoLegionToolkit.Lib;
-using LenovoLegionToolkit.Lib.Controllers.Sensors;
-using LenovoLegionToolkit.Lib.Messaging;
-using LenovoLegionToolkit.Lib.Messaging.Messages;
-using LenovoLegionToolkit.Lib.Settings;
-using LenovoLegionToolkit.Lib.Utils;
-using LenovoLegionToolkit.WPF.Resources;
 
 namespace LenovoLegionToolkit.WPF.Windows.FloatingGadgets;
 
@@ -50,9 +51,11 @@ public partial class FloatingGadget
     #endregion
 
     private readonly ApplicationSettings _settings = IoCContainer.Resolve<ApplicationSettings>();
+    private readonly FloatingGadgetSettings _floatingGadgetSettings = IoCContainer.Resolve<FloatingGadgetSettings>();
     private readonly SensorsController _controller = IoCContainer.Resolve<SensorsController>();
     private readonly SensorsGroupController _sensorsGroupControllers = IoCContainer.Resolve<SensorsGroupController>();
     private readonly FpsSensorController _fpsController = IoCContainer.Resolve<FpsSensorController>();
+    private readonly SensorsControlSettings _sensorsControlSettings = IoCContainer.Resolve<SensorsControlSettings>();
 
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly StringBuilder _stringBuilder = new(64);
@@ -73,14 +76,17 @@ public partial class FloatingGadget
     {
         InitializeComponent();
 
-        RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
-
-        if (_settings.Store.FloatingGadgetItems.Count == 0)
+        if (!AppFlags.Instance.EnableHardwareAcceleration && !_settings.Store.EnableHardwareAcceleration)
         {
-            _settings.Store.FloatingGadgetItems = Enum.GetValues<FloatingGadgetItem>().ToList();
-            _settings.SynchronizeStore();
+            RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
         }
-        _activeItems = new HashSet<FloatingGadgetItem>(_settings.Store.FloatingGadgetItems);
+
+        if (_floatingGadgetSettings.Store.Items.Count == 0)
+        {
+            _floatingGadgetSettings.Store.Items = Enum.GetValues<FloatingGadgetItem>().ToList();
+            _floatingGadgetSettings.SynchronizeStore();
+        }
+        _activeItems = new HashSet<FloatingGadgetItem>(_floatingGadgetSettings.Store.Items);
 
         _itemsMap = new()
         {
@@ -190,6 +196,8 @@ public partial class FloatingGadget
     {
         if (IsVisible)
         {
+            _sensorsGroupControllers.ShowAverageCpuFrequency = _sensorsControlSettings.Store.ShowCpuAverageFrequency;
+
             _cts?.Cancel();
             _cts?.Dispose();
             _cts = new CancellationTokenSource();
@@ -511,7 +519,7 @@ public partial class FloatingGadget
                 }
 
                 var elapsed = DateTime.Now - loopStart;
-                var delay = TimeSpan.FromSeconds(_settings.Store.FloatingGadgetsRefreshInterval) - elapsed;
+                var delay = TimeSpan.FromSeconds(_floatingGadgetSettings.Store.FloatingGadgetsRefreshInterval) - elapsed;
                 if (delay > TimeSpan.Zero)
                 {
                     await Task.Delay(delay, token);

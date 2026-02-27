@@ -1215,13 +1215,14 @@ public readonly struct Time(int hour, int minute)
 
 public readonly struct Update(Release release)
 {
-    public Version Version { get; } = Version.Parse(release.TagName.TrimStart('v'));
+    public Version Version { get; } = ParseVersion(release.TagName);
     public string Title { get; } = release.Name;
     public string Description { get; } = release.Body;
     public DateTimeOffset Date { get; } = release.PublishedAt ?? release.CreatedAt;
 
     public string? Url { get; } = release.Assets
-        .Where(ra => ra.Name.EndsWith("setup.exe", StringComparison.InvariantCultureIgnoreCase))
+        .Where(ra => ra.Name.StartsWith("LenovoLegionToolkitSetup", StringComparison.InvariantCultureIgnoreCase) &&
+                     ra.Name.EndsWith(".exe", StringComparison.InvariantCultureIgnoreCase))
         .Select(ra => ra.BrowserDownloadUrl)
         .FirstOrDefault();
 
@@ -1248,15 +1249,23 @@ public readonly struct Update(Release release)
     }
 
     #endregion
-}
 
-public readonly struct UpdateFromServer(ProjectInfo projectInfo, string patchNote)
-{
-    public Version Version { get; } = Version.Parse(projectInfo.ProjectNewVersion);
-    public string Title { get; } = "LenovoLegionToolkit Updates available.";
-    public string Description { get; } = patchNote;
-    public DateTimeOffset Date { get; } = DateTimeOffset.Now;
-    public string? Url { get; } = "http://kaguya.net.cn:9999/LenovoLegionToolkit/LenovoLegionToolkitSetup.exe";
+    private static Version ParseVersion(string tagName)
+    {
+        var normalized = tagName.TrimStart('v', 'V');
+        if (Version.TryParse(normalized, out var version))
+            return version;
+
+        var numericPart = new string(normalized
+                .TakeWhile(c => char.IsDigit(c) || c == '.')
+                .ToArray())
+            .Trim('.');
+
+        if (Version.TryParse(numericPart, out version))
+            return version;
+
+        throw new FormatException($"Invalid release tag format: {tagName}");
+    }
 }
 
 public readonly struct WarrantyInfo(DateTime? start, DateTime? end, Uri? link)
@@ -1301,4 +1310,13 @@ public struct ProjectInfo
     public string ProjectCurrentExePath { get; set; } = string.Empty;
     public string ProjectNewExePath { get; set; } = string.Empty;
     public string ProjectNewVersion { get; set; } = string.Empty;
+}
+
+public struct UpdateFromServer(ProjectInfo projectInfo, string patchNote)
+{
+    public Version Version { get; set; } = Version.Parse(projectInfo.ProjectNewVersion);
+    public string Title { get; set; } = "LenovoLegionToolkit Updates available.";
+    public string Description { get; set; } = patchNote;
+    public DateTimeOffset Date { get; set; } = DateTimeOffset.Now;
+    public string? Url = projectInfo.ProjectNewExePath;
 }

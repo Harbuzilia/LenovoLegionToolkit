@@ -45,7 +45,6 @@ public partial class SettingsSmartKeysControl
         var visible = fnKeysStatus != SoftwareStatus.Enabled ? Visibility.Visible : Visibility.Collapsed;
         _smartKeySinglePressActionCard.Visibility = visible;
         _smartKeyDoublePressActionCard.Visibility = visible;
-        _notificationsCard.Visibility = visible;
         _excludeRefreshRatesCard.Visibility = visible;
     }
 
@@ -79,14 +78,6 @@ public partial class SettingsSmartKeysControl
         window.ShowDialog();
     }
 
-    private void NotificationsCard_Click(object sender, RoutedEventArgs e)
-    {
-        if (_isRefreshing)
-            return;
-
-        var window = new NotificationsSettingsWindow { Owner = Window.GetWindow(this) };
-        window.ShowDialog();
-    }
 
     private void ExcludeRefreshRates_Click(object sender, RoutedEventArgs e)
     {

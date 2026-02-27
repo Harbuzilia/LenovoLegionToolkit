@@ -1,17 +1,18 @@
-﻿using System;
+﻿using LenovoLegionToolkit.Lib;
+using LenovoLegionToolkit.Lib.Overclocking.Amd;
+using LenovoLegionToolkit.Lib.System;
+using LenovoLegionToolkit.Lib.Utils;
+using LenovoLegionToolkit.WPF.Resources;
+using LenovoLegionToolkit.WPF.Utils;
+using LenovoLegionToolkit.WPF.Windows.Utils;
+using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using LenovoLegionToolkit.Lib;
-using LenovoLegionToolkit.Lib.Messaging;
-using LenovoLegionToolkit.Lib.Messaging.Messages;
-using LenovoLegionToolkit.Lib.Overclocking.Amd;
-using LenovoLegionToolkit.Lib.Utils;
-using LenovoLegionToolkit.WPF.Resources;
-using Microsoft.Win32;
 using Wpf.Ui.Controls;
 
 namespace LenovoLegionToolkit.WPF.Windows.Overclocking.Amd;
@@ -354,25 +355,49 @@ public partial class AmdOverclocking : UiWindow
         }
     }
 
-    private void X3DGamingModeEnabled_OnClick(object sender, RoutedEventArgs e)
+    private async void X3DGamingModeEnabled_OnClick(object sender, RoutedEventArgs e)
     {
         if (_isUpdatingUi)
+        {
+            return;
+        }
+
+        var result = await MessageBoxHelper.ShowAsync(
+            this,
+            Resource.RestartRequired_Title,
+            Resource.RestartRequired_Message,
+            Resource.RestartNow,
+            Resource.RestartLater).ConfigureAwait(false);
+
+        if (!result)
         {
             return;
         }
 
         _controller.SwitchProfile(CpuProfileMode.X3DGaming);
-        MessagingCenter.Publish(new NotificationMessage(NotificationType.AutomationNotification, Resource.SettingsPage_UseNewDashboard_Restart_Message));
+        await Power.RestartAsync().ConfigureAwait(false);
     }
 
-    private void X3DGamingModeDisabled_OnClick(object sender, RoutedEventArgs e)
+    private async void X3DGamingModeDisabled_OnClick(object sender, RoutedEventArgs e)
     {
         if (_isUpdatingUi)
         {
             return;
         }
 
+        var result = await MessageBoxHelper.ShowAsync(
+            this,
+            Resource.RestartRequired_Title,
+            Resource.RestartRequired_Message,
+            Resource.RestartNow,
+            Resource.RestartLater).ConfigureAwait(false);
+
+        if (!result)
+        {
+            return;
+        }
+
         _controller.SwitchProfile(CpuProfileMode.Productivity);
-        MessagingCenter.Publish(new NotificationMessage(NotificationType.AutomationNotification, Resource.SettingsPage_UseNewDashboard_Restart_Message));
+        await Power.RestartAsync().ConfigureAwait(false);
     }
 }

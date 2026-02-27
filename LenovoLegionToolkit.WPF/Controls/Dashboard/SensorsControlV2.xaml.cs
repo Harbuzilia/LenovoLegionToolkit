@@ -40,6 +40,9 @@ public partial class SensorsControlV2
         InitializeComponent();
         InitializeContextMenu();
         IsVisibleChanged += SensorsControl_IsVisibleChanged;
+
+        _sensorsGroupControllers.SelectedGpuIsIgpu = _sensorsControlSettings.Store.SelectedGpuIsIgpu;
+
         _cpuNameTask = GetProcessedCpuName();
         _sensorItemToControlMap = new Dictionary<SensorItem, FrameworkElement>
         {
@@ -144,6 +147,9 @@ public partial class SensorsControlV2
     {
         if (IsVisible)
         {
+            _sensorsGroupControllers.SelectedGpuIsIgpu = _sensorsControlSettings.Store.SelectedGpuIsIgpu;
+            _sensorsGroupControllers.ShowAverageCpuFrequency = _sensorsControlSettings.Store.ShowCpuAverageFrequency;
+
             _activeSensorItems.Clear();
             if (_sensorsControlSettings.Store.VisibleItems != null)
             {

@@ -21,7 +21,6 @@ using LenovoLegionToolkit.Lib.Settings;
 using LenovoLegionToolkit.Lib.SoftwareDisabler;
 using LenovoLegionToolkit.Lib.Utils;
 using LenovoLegionToolkit.Lib.Utils.Warranty;
-using UniversalFanControl.Lib.Generic.Api;
 
 namespace LenovoLegionToolkit.Lib;
 
@@ -38,6 +37,7 @@ public class IoCModule : Module
 
         builder.Register<ApplicationSettings>();
         builder.Register<BalanceModeSettings>();
+        builder.Register<FloatingGadgetSettings>();
         builder.Register<GodModeSettings>();
         builder.Register<GPUOverclockSettings>();
         builder.Register<IntegrationsSettings>();
@@ -45,7 +45,7 @@ public class IoCModule : Module
         builder.Register<RGBKeyboardSettings>();
         builder.Register<SpectrumKeyboardSettings>();
         builder.Register<SunriseSunsetSettings>();
-        builder.Register<UpdateCheckSettings>();
+        builder.Register<UpdateSettings>();
         builder.Register<LampArraySettings>();
         builder.Register<FanCurveSettings>().SingleInstance();
 

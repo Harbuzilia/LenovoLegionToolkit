@@ -28,11 +28,7 @@ public partial class UpdateWindow : IProgress<float>
     {
         var updates = await _updateChecker.GetUpdatesAsync();
 
-        if (updates.Length == 0)
-        {
-            _markdownViewer.Markdown = _updateChecker.UpdateFromServer.Description;
-        }
-        else
+        if (updates.Length > 0)
         {
             var stringBuilder = new StringBuilder();
             foreach (var update in updates)
@@ -44,6 +40,16 @@ public partial class UpdateWindow : IProgress<float>
             }
 
             _markdownViewer.Markdown = stringBuilder.ToString();
+        }
+        else
+        {
+            if (_updateChecker.UpdateFromServer != null)
+            {
+                if (_updateChecker.UpdateFromServer?.Description.Length > 0)
+                {
+                    _markdownViewer.Markdown = _updateChecker.UpdateFromServer?.Description;
+                }
+            }
         }
 
         _downloadButton.IsEnabled = true;
@@ -72,6 +78,11 @@ public partial class UpdateWindow : IProgress<float>
         catch (OperationCanceledException)
         {
             SetDownloading(false);
+        }
+        catch (SecurityException ex)
+        {
+            SetDownloading(false);
+            throw new SecurityException(ex.Message + ex.InnerException!.Message);
         }
         catch
         {

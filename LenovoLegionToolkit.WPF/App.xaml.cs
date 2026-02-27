@@ -77,6 +77,8 @@ public partial class App
     public new static App Current => (App)Application.Current;
     public static MainWindow? MainWindowInstance;
 
+    public static bool IsRestoringSettings { get; set; }
+
     #endregion
 
     #region Startup & Exit Logic
@@ -85,137 +87,27 @@ public partial class App
     {
         try
         {
-#if DEBUG
-            if (Debugger.IsAttached)
-                Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName)
-                    .Where(p => p.Id != Environment.ProcessId)
-                    .ToList()
-                    .ForEach(p =>
-                    {
-                        p.Kill();
-                        p.WaitForExit();
-                    });
-#endif
-            AppFlags.Initialize(e.Args);
-            Log.Instance.IsTraceEnabled = AppFlags.Instance.IsTraceEnabled;
-            await Compatibility.PrintMachineInfoAsync();
-            SetupExceptionHandling();
-
-            if (AppFlags.Instance.Debug)
-            {
-                InitializeDebugConsole();
-                Console.WriteLine(
-                    @$"[Startup] Parsing Flags complete. TraceEnabled: {AppFlags.Instance.IsTraceEnabled}");
-            }
-
-            if (AppFlags.Instance.Debug) Console.WriteLine(@"[Startup] Ensuring Single Instance...");
-            EnsureSingleInstance();
-
-            if (AppFlags.Instance.Debug) Console.WriteLine(@"[Startup] Initializing IoC Container...");
-            IoCContainer.Initialize(
-                new Lib.IoCModule(),
-                new Lib.Automation.IoCModule(),
-                new Lib.Macro.IoCModule(),
-                new IoCModule()
-            );
-
-            if (AppFlags.Instance.Debug) Console.WriteLine(@"[Startup] Setting Language and Checking Compatibility...");
-            await Task.WhenAll(
-                LocalizationHelper.SetLanguageAsync(true),
-                CheckCompatibilityAsyncWrapper(AppFlags.Instance)
-            );
-
-            if (AppFlags.Instance.Debug) Console.WriteLine(@"[Startup] Configuring Render Options...");
-            WinFormsApp.SetHighDpiMode(WinFormsHighDpiMode.PerMonitorV2);
-            RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
-
-            ConfigureFeatureFlags();
-
-            if (AppFlags.Instance.Debug) Console.WriteLine(@"[Startup] Initializing Features...");
-
-            Log.Instance.Trace(
-                $"Starting... [version={Assembly.GetEntryAssembly()?.GetName().Version}, build={Assembly.GetEntryAssembly()?.GetBuildDateTimeString()}, os={Environment.OSVersion}, dotnet={Environment.Version}]");
-
-            var initTasks = new List<Task>
-            {
-                SafeInitAsync(InitAIControllerAsync, "AI Controller"),
-                SafeInitAsync(InitAutomationProcessorAsync, "Automation Processor"),
-                SafeInitAsync(InitSensorsGroupControllerFeatureAsync, "Sensors Group"),
-                SafeInitAsync(LogSoftwareStatusAsync, "Software Status"),
-                SafeInitAsync(InitPowerModeFeatureAsync, "Power Mode"),
-                SafeInitAsync(InitItsModeFeatureAsync, "ITS Mode"),
-                SafeInitAsync(InitBatteryFeatureAsync, "Battery Feature"),
-                SafeInitAsync(InitRgbKeyboardControllerAsync, "RGB Keyboard"),
-                SafeInitAsync(InitSpectrumKeyboardControllerAsync, "Spectrum Keyboard"),
-                SafeInitAsync(InitGpuOverclockControllerAsync, "GPU Overclock"),
-                SafeInitAsync(InitHybridModeAsync, "Hybrid Mode"),
-                SafeInitAsync(InitFanManagerExtension, "Fan Manager"),
-                SafeInitAsync(InitAutomationLocalization, "Automation Localization"),
-                SafeInitAsync(InitLampArrayControllerAsync, "LampArray")
-            };
-
-            await Task.WhenAll(initTasks);
-
-            if (AppFlags.Instance.Debug) Console.WriteLine(@"[Startup] Starting MacroController...");
-            IoCContainer.Resolve<MacroController>().Start();
-
-            var deferredInitTask = Task.Run(async () =>
-            {
-                if (AppFlags.Instance.Debug) Console.WriteLine(@"[AsyncWorker] Starting HWiNFO/IPC...");
-                await IoCContainer.Resolve<HWiNFOIntegration>().StartStopIfNeededAsync();
-                await IoCContainer.Resolve<IpcServer>().StartStopIfNeededAsync();
-            });
-
-            await InitSetPowerMode();
-
-#if !DEBUG
-            Autorun.Validate();
-#endif
-            if (AppFlags.Instance.Debug) Console.WriteLine(@"[Startup] Creating MainWindow...");
-            var mainWindow = new MainWindow
-            {
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                TrayTooltipEnabled = !AppFlags.Instance.DisableTrayTooltip,
-                DisableConflictingSoftwareWarning = AppFlags.Instance.DisableConflictingSoftwareWarning
-            };
-
-            MainWindow = mainWindow;
-            MainWindowInstance = mainWindow;
-
-            // DEBUG: Open LampArray Debug Window
-            // var debugWindow = new LenovoLegionToolkit.WPF.Windows.Debug.LampArrayDebugWindow();
-            // debugWindow.Show();
-
-            IoCContainer.Resolve<ThemeManager>().Apply();
-            InitSetLogIndicator();
-
-            _ = new DialogWindow();
-
-            await InitAMDOverclocking();
-
-            if (AppFlags.Instance.Minimized)
-            {
-                mainWindow.WindowState = WindowState.Minimized;
-                mainWindow.Show();
-                mainWindow.SendToTray();
-            }
-            else
-            {
-                mainWindow.Show();
-                if (_showPawnIONotify) PawnIOHelper.ShowPawnIONotify();
-            }
-
+            await InitializeCoreEnvironmentAsync(e);
+            await InitializeSettingsAndCompatibilityAsync();
+            await InitializeHardwareAndFeaturesAsync();
+            var deferredInitTask = StartBackgroundServicesAsync();
+            await InitializeUIAsync();
             await deferredInitTask;
 
             await Dispatcher.InvokeAsync(() =>
             {
                 if (Log.Instance.IsTraceEnabled)
-                    Log.Instance.Trace(
-                        $"Lenovo Legion Toolkit Version {Assembly.GetEntryAssembly()?.GetName().Version}");
+                {
+                    Log.Instance.Trace($"Lenovo Legion Toolkit Version {Assembly.GetEntryAssembly()?.GetName().Version}");
+                }
 
                 Compatibility.PrintControllerVersionAsync().ConfigureAwait(false);
                 InitFloatingGadget();
-                if (AppFlags.Instance.Debug) Console.WriteLine(@"[Startup] Startup Complete.");
+
+                if (AppFlags.Instance.Debug)
+                {
+                    Console.WriteLine(@"[Startup] Startup Complete.");
+                }
             });
         }
         catch (Exception ex)
@@ -229,75 +121,197 @@ public partial class App
 
             HandleCriticalStartupError(ex);
         }
-
-        return;
-
-        static async Task InitItsModeFeatureAsync()
-        {
-            try
-            {
-                var feature = IoCContainer.Resolve<ITSModeFeature>();
-                if (await feature.IsSupportedAsync()) await feature.SetStateAsync(await feature.GetStateAsync());
-            }
-            catch (Exception ex)
-            {
-                Log.Instance.Trace($"Couldn't ensure its mode state.", ex);
-            }
-        }
-
-        static async Task InitPowerModeFeatureAsync()
-        {
-            try
-            {
-                var feature = IoCContainer.Resolve<PowerModeFeature>();
-                if (await feature.IsSupportedAsync())
-                {
-                    await feature.EnsureGodModeStateIsAppliedAsync();
-                    await feature.EnsureCorrectWindowsPowerSettingsAreSetAsync();
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Instance.Trace($"InitPowerModeFeatureAsync failed.", ex);
-            }
-        }
-
-        static async Task InitAIControllerAsync()
-        {
-            try
-            {
-                await IoCContainer.Resolve<AIController>().StartIfNeededAsync();
-            }
-            catch (Exception ex)
-            {
-                Log.Instance.Trace($"InitAIControllerAsync failed.", ex);
-            }
-        }
     }
 
+    private async Task InitializeCoreEnvironmentAsync(StartupEventArgs e)
+    {
+#if DEBUG
+        if (Debugger.IsAttached)
+        {
+            Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName)
+                .Where(p => p.Id != Environment.ProcessId)
+                .ToList()
+                .ForEach(p =>
+                {
+                    p.Kill();
+                    p.WaitForExit();
+                });
+        }
+#endif
+
+        AppFlags.Initialize(e.Args);
+        Log.Instance.IsTraceEnabled = AppFlags.Instance.IsTraceEnabled;
+        
+        await Compatibility.PrintMachineInfoAsync().ConfigureAwait(false);
+        
+        SetupExceptionHandling();
+
+        if (AppFlags.Instance.Debug)
+        {
+            InitializeDebugConsole();
+            Console.WriteLine(@$"[Startup] Parsing Flags complete. TraceEnabled: {AppFlags.Instance.IsTraceEnabled}");
+            Console.WriteLine(@"[Startup] Ensuring Single Instance...");
+        }
+
+        EnsureSingleInstance();
+
+        if (AppFlags.Instance.Debug)
+        {
+            Console.WriteLine(@"[Startup] Initializing IoC Container...");
+        }
+
+        IoCContainer.Initialize(
+            new Lib.IoCModule(),
+            new Lib.Automation.IoCModule(),
+            new Lib.Macro.IoCModule(),
+            new IoCModule()
+        );
+    }
+
+    private async Task InitializeSettingsAndCompatibilityAsync()
+    {
+        if (AppFlags.Instance.Debug)
+        {
+            Console.WriteLine(@"[Startup] Setting Language and Checking Compatibility...");
+        }
+
+        await Task.WhenAll(
+            LocalizationHelper.SetLanguageAsync(true),
+            CheckCompatibilityAsyncWrapper(AppFlags.Instance)
+        );
+
+        if (AppFlags.Instance.Debug)
+        {
+            Console.WriteLine(@"[Startup] Configuring Render Options...");
+        }
+
+        WinFormsApp.SetHighDpiMode(WinFormsHighDpiMode.PerMonitorV2);
+
+        var settings = IoCContainer.Resolve<ApplicationSettings>();
+
+        if (!AppFlags.Instance.EnableHardwareAcceleration && !settings.Store.EnableHardwareAcceleration)
+        {
+            RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
+        }
+
+        MigrateSettingsToNew();
+        ConfigureFeatureFlags();
+    }
+
+    private async Task InitializeHardwareAndFeaturesAsync()
+    {
+        if (AppFlags.Instance.Debug)
+        {
+            Console.WriteLine(@"[Startup] Initializing Features...");
+        }
+
+        Log.Instance.Trace($"Starting... [version={Assembly.GetEntryAssembly()?.GetName().Version}, build={Assembly.GetEntryAssembly()?.GetBuildDateTimeString()}, os={Environment.OSVersion}, dotnet={Environment.Version}]");
+
+        var initTasks = new List<Task>
+        {
+            SafeInitAsync(InitAIControllerAsync, "AI Controller"),
+            SafeInitAsync(InitAutomationProcessorAsync, "Automation Processor"),
+            SafeInitAsync(InitSensorsGroupControllerFeatureAsync, "Sensors Group"),
+            SafeInitAsync(LogSoftwareStatusAsync, "Software Status"),
+            SafeInitAsync(InitPowerModeFeatureAsync, "Power Mode"),
+            SafeInitAsync(InitItsModeFeatureAsync, "ITS Mode"),
+            SafeInitAsync(InitBatteryFeatureAsync, "Battery Feature"),
+            SafeInitAsync(InitRgbKeyboardControllerAsync, "RGB Keyboard"),
+            SafeInitAsync(InitSpectrumKeyboardControllerAsync, "Spectrum Keyboard"),
+            SafeInitAsync(InitGpuOverclockControllerAsync, "GPU Overclock"),
+            SafeInitAsync(InitLampArrayControllerAsync, "LampArray"),
+            SafeInitAsync(InitHybridModeAsync, "Hybrid Mode"),
+            SafeInitAsync(InitFanManagerExtension, "Fan Manager"),
+            SafeInitAsync(InitAutomationLocalization, "Automation Localization"),
+            SafeInitAsync(InitAMDOverclocking, "AMD Overclocking"),
+            SafeInitAsync(InitSetPowerMode, "Set Power Mode"),
+        };
+
+        await Task.WhenAll(initTasks);
+    }
+
+    private Task StartBackgroundServicesAsync()
+    {
+        if (AppFlags.Instance.Debug)
+        {
+            Console.WriteLine(@"[Startup] Starting MacroController...");
+        }
+
+        IoCContainer.Resolve<MacroController>().Start();
+
+        return Task.Run(async () =>
+        {
+            if (AppFlags.Instance.Debug)
+            {
+                Console.WriteLine(@"[AsyncWorker] Starting HWiNFO/IPC...");
+            }
+
+            await IoCContainer.Resolve<HWiNFOIntegration>().StartStopIfNeededAsync();
+            await IoCContainer.Resolve<IpcServer>().StartStopIfNeededAsync();
+        });
+    }
+
+    private async Task InitializeUIAsync()
+    {
+#if !DEBUG
+        Autorun.Validate();
+#endif
+        if (AppFlags.Instance.Debug)
+        {
+            Console.WriteLine(@"[Startup] Creating MainWindow...");
+        }
+
+        var mainWindow = new MainWindow
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+            TrayTooltipEnabled = !AppFlags.Instance.DisableTrayTooltip,
+            DisableConflictingSoftwareWarning = AppFlags.Instance.DisableConflictingSoftwareWarning
+        };
+
+        MainWindow = mainWindow;
+        MainWindowInstance = mainWindow;
+
+        IoCContainer.Resolve<ThemeManager>().Apply();
+        InitSetLogIndicator();
+
+        PawnIOHelper.RequestShowDialogAsync = async () => await MessageBoxHelper.ShowAsync(Current.MainWindow!, Resource.MainWindow_PawnIO_Warning_Title, Resource.MainWindow_PawnIO_Warning_Message, Resource.Yes, Resource.No);
+
+        if (AppFlags.Instance.Minimized)
+        {
+            mainWindow.WindowState = WindowState.Minimized;
+            mainWindow.Show();
+            mainWindow.SendToTray();
+        }
+        else
+        {
+            mainWindow.Show();
+            if (_showPawnIONotify)
+            {
+                PawnIOHelper.ShowPawnIONotify();
+            }
+        }
+
+        await Task.CompletedTask;
+    }
 
     private void InitializeDebugConsole()
     {
-        if (!AttachConsole(ATTACH_PARENT_PROCESS)) AllocConsole();
+        if (!AttachConsole(ATTACH_PARENT_PROCESS))
+        {
+            AllocConsole();
+        }
     }
 
     private void ConfigureFeatureFlags()
     {
-        IoCContainer.Resolve<HttpClientFactory>().SetProxy(AppFlags.Instance.ProxyUrl, AppFlags.Instance.ProxyUsername,
-            AppFlags.Instance.ProxyPassword, AppFlags.Instance.ProxyAllowAllCerts);
-        IoCContainer.Resolve<PowerModeFeature>().AllowAllPowerModesOnBattery =
-            AppFlags.Instance.AllowAllPowerModesOnBattery;
-        IoCContainer.Resolve<RGBKeyboardBacklightController>().ForceDisable =
-            AppFlags.Instance.ForceDisableRgbKeyboardSupport;
-        IoCContainer.Resolve<SpectrumKeyboardBacklightController>().ForceDisable =
-            AppFlags.Instance.ForceDisableSpectrumKeyboardSupport;
-        IoCContainer.Resolve<WhiteKeyboardLenovoLightingBacklightFeature>().ForceDisable =
-            AppFlags.Instance.ForceDisableLenovoLighting;
-        IoCContainer.Resolve<PanelLogoLenovoLightingBacklightFeature>().ForceDisable =
-            AppFlags.Instance.ForceDisableLenovoLighting;
+        IoCContainer.Resolve<HttpClientFactory>().SetProxy(AppFlags.Instance.ProxyUrl, AppFlags.Instance.ProxyUsername, AppFlags.Instance.ProxyPassword, AppFlags.Instance.ProxyAllowAllCerts);
+        IoCContainer.Resolve<PowerModeFeature>().AllowAllPowerModesOnBattery = AppFlags.Instance.AllowAllPowerModesOnBattery;
+        IoCContainer.Resolve<RGBKeyboardBacklightController>().ForceDisable = AppFlags.Instance.ForceDisableRgbKeyboardSupport;
+        IoCContainer.Resolve<SpectrumKeyboardBacklightController>().ForceDisable = AppFlags.Instance.ForceDisableSpectrumKeyboardSupport;
+        IoCContainer.Resolve<WhiteKeyboardLenovoLightingBacklightFeature>().ForceDisable = AppFlags.Instance.ForceDisableLenovoLighting;
+        IoCContainer.Resolve<PanelLogoLenovoLightingBacklightFeature>().ForceDisable = AppFlags.Instance.ForceDisableLenovoLighting;
         IoCContainer.Resolve<PortsBacklightFeature>().ForceDisable = AppFlags.Instance.ForceDisableLenovoLighting;
-        IoCContainer.Resolve<IGPUModeFeature>().ExperimentalGPUWorkingMode =
-            AppFlags.Instance.ExperimentalGPUWorkingMode;
+        IoCContainer.Resolve<IGPUModeFeature>().ExperimentalGPUWorkingMode = AppFlags.Instance.ExperimentalGPUWorkingMode;
         IoCContainer.Resolve<DGPUNotify>().ExperimentalGPUWorkingMode = AppFlags.Instance.ExperimentalGPUWorkingMode;
         IoCContainer.Resolve<UpdateChecker>().Disable = AppFlags.Instance.DisableUpdateChecker;
     }
@@ -316,22 +330,15 @@ public partial class App
             {
                 Console.ReadLine();
             }
-            catch
-            {
-                /* Ignore */
-            }
+            catch { /* Ignore */ }
         }
         else
         {
             try
             {
-                MessageBox.Show(errorMsg, "Lenovo Legion Toolkit - Startup Error", MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+                MessageBox.Show(errorMsg, "Lenovo Legion Toolkit - Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-            catch
-            {
-                /* Ignore */
-            }
+            catch { /* Ignore */ }
         }
 
         Environment.Exit(-1);
@@ -339,6 +346,26 @@ public partial class App
 
     private void Application_Exit(object sender, ExitEventArgs e)
     {
+        try
+        {
+            var controller = IoCContainer.TryResolve<AmdOverclockingController>();
+
+            if (controller != null && controller.IsActive())
+            {
+                var cleanInfo = new ShutdownInfo
+                {
+                    Status = "Normal",
+                    AbnormalCount = 0
+                };
+
+                controller.SaveShutdownInfo(cleanInfo);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Instance.Trace($"Application_Exit save status failed: {ex.Message}");
+        }
+
         _singleInstanceMutex?.Close();
     }
 
@@ -378,13 +405,6 @@ public partial class App
         var fanManager = IoCContainer.Resolve<FanCurveManager>();
         if (fanManager.IsEnabled) await fanManager.SetRegister().ConfigureAwait(false);
 
-        await SafeExecuteAsync<LampArrayController>(async c =>
-        {
-            var settings = IoCContainer.Resolve<LampArraySettings>();
-            c.SaveSettings(settings);
-            await c.StopAsync();
-        });
-
         Shutdown();
     }
 
@@ -392,12 +412,12 @@ public partial class App
     {
         try
         {
-            if (IoCContainer.TryResolve<T>() is { } service) await action(service);
+            if (IoCContainer.TryResolve<T>() is { } service)
+            {
+                await action(service);
+            }
         }
-        catch
-        {
-            /* Ignore */
-        }
+        catch { /* Ignore */ }
     }
 
     protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
@@ -421,7 +441,10 @@ public partial class App
     {
         var overclockController = IoCContainer.Resolve<AmdOverclockingController>();
 
-        if (!overclockController.IsActive()) return;
+        if (!overclockController.IsActive())
+        {
+            return;
+        }
 
         var cleanInfo = new ShutdownInfo
         {
@@ -440,30 +463,44 @@ public partial class App
 
     private async Task CheckCompatibilityAsyncWrapper(AppFlags flags)
     {
-        if (flags.SkipCompatibilityCheck) return;
+        if (flags.SkipCompatibilityCheck)
+        {
+            return;
+        }
 
         try
         {
-            if (!await CheckBasicCompatibilityAsync()) return;
+            if (!await CheckBasicCompatibilityAsync())
+            {
+                return;
+            }
 
-            if (!await CheckCompatibilityAsync()) return;
+            if (!await CheckCompatibilityAsync())
+            {
+                return;
+            }
         }
         catch (Exception ex)
         {
-            if (flags.Debug) Console.WriteLine(@$"[Compatibility] Check failed: {ex.Message}");
+            if (flags.Debug)
+            {
+                Console.WriteLine(@$"[Compatibility] Check failed: {ex.Message}");
+            }
+
             Log.Instance.Trace($"Failed to check device compatibility", ex);
-            MessageBox.Show(Resource.CompatibilityCheckError_Message, Resource.AppName, MessageBoxButton.OK,
-                MessageBoxImage.Error);
+            MessageBox.Show(Resource.CompatibilityCheckError_Message, Resource.AppName, MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(200);
         }
     }
 
     private async Task<bool> CheckBasicCompatibilityAsync()
     {
-        if (await Compatibility.CheckBasicCompatibilityAsync()) return true;
+        if (await Compatibility.CheckBasicCompatibilityAsync())
+        {
+            return true;
+        }
 
-        MessageBox.Show(Resource.IncompatibleDevice_Message, Resource.AppName, MessageBoxButton.OK,
-            MessageBoxImage.Error);
+        MessageBox.Show(Resource.IncompatibleDevice_Message, Resource.AppName, MessageBoxButton.OK, MessageBoxImage.Error);
         Shutdown(201);
         return false;
     }
@@ -471,15 +508,14 @@ public partial class App
     private async Task<bool> CheckCompatibilityAsync()
     {
         var (isCompatible, mi) = await Compatibility.IsCompatibleAsync();
+
         if (isCompatible)
         {
-            Log.Instance.Trace(
-                $"Compatibility check passed. [Vendor={mi.Vendor}, Model={mi.Model}, MachineType={mi.MachineType}, BIOS={mi.BiosVersion}]");
+            Log.Instance.Trace($"Compatibility check passed. [Vendor={mi.Vendor}, Model={mi.Model}, MachineType={mi.MachineType}, BIOS={mi.BiosVersion}]");
             return true;
         }
 
-        Log.Instance.Trace(
-            $"Incompatible system detected. [Vendor={mi.Vendor}, Model={mi.Model}, MachineType={mi.MachineType}, BIOS={mi.BiosVersion}]");
+        Log.Instance.Trace($"Incompatible system detected. [Vendor={mi.Vendor}, Model={mi.Model}, MachineType={mi.MachineType}, BIOS={mi.BiosVersion}]");
 
         var unsupportedWindow = new UnsupportedWindow(mi);
         unsupportedWindow.Show();
@@ -487,8 +523,7 @@ public partial class App
         if (await unsupportedWindow.ShouldContinue)
         {
             Log.Instance.IsTraceEnabled = true;
-            Log.Instance.Trace(
-                $"Compatibility check OVERRIDE. [Vendor={mi.Vendor}, Model={mi.Model}, MachineType={mi.MachineType}]");
+            Log.Instance.Trace($"Compatibility check OVERRIDE. [Vendor={mi.Vendor}, Model={mi.Model}, MachineType={mi.MachineType}]");
             return true;
         }
 
@@ -512,6 +547,7 @@ public partial class App
         {
             WindowStartupLocation = WindowStartupLocation.CenterScreen
         };
+
         MainWindow.Show();
 
         if (FloatingGadget != null)
@@ -521,9 +557,12 @@ public partial class App
             FloatingGadget = null;
         }
 
-        var settingsStore = IoCContainer.Resolve<ApplicationSettings>().Store;
+        var settingsStore = IoCContainer.Resolve<FloatingGadgetSettings>().Store;
 
-        if (!settingsStore.ShowFloatingGadgets) return;
+        if (!settingsStore.ShowFloatingGadgets)
+        {
+            return;
+        }
 
         FloatingGadget = settingsStore.SelectedStyleIndex switch
         {
@@ -549,13 +588,19 @@ public partial class App
         Task.Factory.StartNew(() =>
         {
             while (_singleInstanceWaitHandle.WaitOne())
+            {
                 Dispatcher.BeginInvoke(async () =>
                 {
                     if (MainWindow is { } window)
+                    {
                         window.BringToForeground();
+                    }
                     else
+                    {
                         await ShutdownAsync();
+                    }
                 });
+            }
         }, TaskCreationOptions.LongRunning);
     }
 
@@ -565,41 +610,71 @@ public partial class App
 
     private void LogUnhandledException(Exception exception)
     {
-        if (exception == null) return;
+        if (exception == null)
+        {
+            return;
+        }
 
-        if (AppFlags.Instance is { Debug: true }) Console.WriteLine(@$"[UnhandledException] {exception}");
+        if (AppFlags.Instance is { Debug: true })
+        {
+            Console.WriteLine(@$"[UnhandledException] {exception}");
+        }
 
         Log.Instance.Trace($"Exception in LogUnhandledException {exception.Message}", exception);
         var userMessage = GetFriendlyErrorMessage(exception);
 
-        if (Application.Current == null) return;
+        if (Application.Current == null)
+        {
+            return;
+        }
 
         var showSnackbarAction = () =>
+        {
             SnackbarHelper.Show(Resource.UnexpectedException, userMessage, SnackbarType.Error);
+        };
 
         if (Dispatcher.CheckAccess())
+        {
             showSnackbarAction();
-
+        }
         else
+        {
             Dispatcher.BeginInvoke(showSnackbarAction);
+        }
     }
 
     private Exception GetInnermostException(Exception ex)
     {
         if (ex is AggregateException { InnerExceptions.Count: > 0 } aggEx)
+        {
             return GetInnermostException(aggEx.InnerExceptions[0]);
+        }
 
-        return ex.InnerException != null ? GetInnermostException(ex.InnerException) : ex;
+        if (ex.InnerException != null)
+        {
+            return GetInnermostException(ex.InnerException);
+        }
+
+        return ex;
     }
 
     private string GetFriendlyErrorMessage(Exception ex)
     {
-        if (ex == null) return "An unknown error occurred.";
+        if (ex == null)
+        {
+            return "An unknown error occurred.";
+        }
 
         var inner = GetInnermostException(ex);
-        return string.IsNullOrWhiteSpace(inner.Message)
-            ? "An unexpected error occurred, please try again."
-            : inner.Message;
+
+        if (string.IsNullOrWhiteSpace(inner.Message))
+        {
+            return "An unexpected error occurred, please try again.";
+        }
+        else
+        {
+            return inner.Message;
+        }
     }
 
     private bool ShouldIgnoreException(Exception ex)
@@ -617,19 +692,27 @@ public partial class App
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
         {
             if (!ShouldIgnoreException((Exception)e.ExceptionObject))
+            {
                 LogUnhandledException((Exception)e.ExceptionObject);
+            }
         };
 
         DispatcherUnhandledException += (s, e) =>
         {
-            if (!ShouldIgnoreException(e.Exception)) LogUnhandledException(e.Exception);
+            if (!ShouldIgnoreException(e.Exception))
+            {
+                LogUnhandledException(e.Exception);
+            }
 
             e.Handled = true;
         };
 
         TaskScheduler.UnobservedTaskException += (s, e) =>
         {
-            if (!ShouldIgnoreException(e.Exception)) LogUnhandledException(e.Exception);
+            if (!ShouldIgnoreException(e.Exception))
+            {
+                LogUnhandledException(e.Exception);
+            }
 
             e.SetObserved();
         };
@@ -637,11 +720,70 @@ public partial class App
 
     #endregion
 
+    #region Utils
+
+    private static void MigrateSettingsToNew()
+    {
+        _ = IoCContainer.Resolve<FloatingGadgetSettings>().Store;
+    }
+
+    #endregion
+
     #region Feature Initialization
+
+    private static async Task InitItsModeFeatureAsync()
+    {
+        try
+        {
+            var feature = IoCContainer.Resolve<ITSModeFeature>();
+
+            if (await feature.IsSupportedAsync())
+            {
+                await feature.SetStateAsync(await feature.GetStateAsync());
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Instance.Trace($"Couldn't ensure its mode state.", ex);
+        }
+    }
+
+    private static async Task InitPowerModeFeatureAsync()
+    {
+        try
+        {
+            var feature = IoCContainer.Resolve<PowerModeFeature>();
+
+            if (await feature.IsSupportedAsync())
+            {
+                await feature.EnsureGodModeStateIsAppliedAsync();
+                await feature.EnsureCorrectWindowsPowerSettingsAreSetAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Instance.Trace($"InitPowerModeFeatureAsync failed.", ex);
+        }
+    }
+
+    private static async Task InitAIControllerAsync()
+    {
+        try
+        {
+            await IoCContainer.Resolve<AIController>().StartIfNeededAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Instance.Trace($"InitAIControllerAsync failed.", ex);
+        }
+    }
 
     private static async Task LogSoftwareStatusAsync()
     {
-        if (!Log.Instance.IsTraceEnabled) return;
+        if (!Log.Instance.IsTraceEnabled)
+        {
+            return;
+        }
 
         Log.Instance.Trace($"Vantage status: {await IoCContainer.Resolve<VantageDisabler>().GetStatusAsync()}");
         Log.Instance.Trace($"LegionSpace status: {await IoCContainer.Resolve<LegionSpaceDisabler>().GetStatusAsync()}");
@@ -680,7 +822,9 @@ public partial class App
         AutomationTranslator.GetTitleFunc = typeName =>
         {
             return TitleCache.GetOrAdd(typeName, name =>
-                Resource.ResourceManager.GetString($"{name}Control_Title") ?? name.Replace("AutomationStep", string.Empty));
+            {
+                return Resource.ResourceManager.GetString($"{name}Control_Title") ?? name.Replace("AutomationStep", string.Empty);
+            });
         };
     }
 
@@ -689,11 +833,15 @@ public partial class App
         try
         {
             var feature = IoCContainer.Resolve<PowerModeFeature>();
+
+            if (!await feature.IsSupportedAsync().ConfigureAwait(false))
+            {
+                return;
+            }
+
             var mi = await Compatibility.GetMachineInformationAsync().ConfigureAwait(false);
 
-            if (await Power.IsPowerAdapterConnectedAsync() == PowerAdapterStatus.Connected
-                && await feature.GetStateAsync().ConfigureAwait(false) == PowerModeState.GodMode
-                && mi.Properties.HasReapplyParameterIssue)
+            if (await Power.IsPowerAdapterConnectedAsync() == PowerAdapterStatus.Connected && await feature.GetStateAsync().ConfigureAwait(false) == PowerModeState.GodMode && mi.Properties.HasReapplyParameterIssue)
             {
                 await feature.SetStateAsync(PowerModeState.Balance).ConfigureAwait(false);
                 await Task.Delay(500).ConfigureAwait(false);
@@ -706,27 +854,16 @@ public partial class App
         }
     }
 
-    private static async Task InitLampArrayControllerAsync()
-    {
-        try
-        {
-            var controller = IoCContainer.Resolve<LampArrayController>();
-            var settings = IoCContainer.Resolve<LampArraySettings>();
-            controller.SetScreenCaptureProvider(new SpectrumScreenCapture());
-            await controller.InitializeAsync(settings);
-        }
-        catch (Exception ex)
-        {
-            Log.Instance.Trace($"InitLampArrayControllerAsync failed.", ex);
-        }
-    }
-
     private static void InitSetLogIndicator()
     {
         try
         {
             var settings = IoCContainer.Resolve<ApplicationSettings>();
-            if (!settings.Store.EnableLogging || Current.MainWindow is not MainWindow mainWindow) return;
+
+            if (!settings.Store.EnableLogging || Current.MainWindow is not MainWindow mainWindow)
+            {
+                return;
+            }
 
             Log.Instance.IsTraceEnabled = true;
             mainWindow._openLogIndicator.Visibility = Visibility.Visible;
@@ -742,7 +879,11 @@ public partial class App
         try
         {
             var feature = IoCContainer.Resolve<BatteryFeature>();
-            if (await feature.IsSupportedAsync()) await feature.EnsureCorrectBatteryModeIsSetAsync();
+
+            if (await feature.IsSupportedAsync())
+            {
+                await feature.EnsureCorrectBatteryModeIsSetAsync();
+            }
         }
         catch (Exception ex)
         {
@@ -753,18 +894,30 @@ public partial class App
     private static async Task InitSensorsGroupControllerFeatureAsync()
     {
         var settings = IoCContainer.Resolve<ApplicationSettings>();
+        var floatingGadgetSettings = IoCContainer.Resolve<FloatingGadgetSettings>();
+
         try
         {
-            if (settings.Store is { UseNewSensorDashboard: false, ShowFloatingGadgets: false }) return;
+            if (settings.Store is { EnableHardwareSensors: false })
+            {
+                return;
+            }
 
             var state = await IoCContainer.Resolve<SensorsGroupController>().IsSupportedAsync();
+
             if (state is not (LibreHardwareMonitorInitialState.Initialized or LibreHardwareMonitorInitialState.Success))
+            {
                 Current._showPawnIONotify = true;
+            }
         }
         catch (Exception ex)
         {
             Log.Instance.Trace($"InitSensorsGroupControllerFeatureAsync() raised exception:", ex);
-            if (!ex.Message.Contains("LibreHardwareMonitor initialization failed")) Current._showPawnIONotify = true;
+
+            if (!ex.Message.Contains("LibreHardwareMonitor initialization failed"))
+            {
+                Current._showPawnIONotify = true;
+            }
         }
     }
 
@@ -773,7 +926,11 @@ public partial class App
         try
         {
             var controller = IoCContainer.Resolve<RGBKeyboardBacklightController>();
-            if (await controller.IsSupportedAsync()) await controller.SetLightControlOwnerAsync(true, true);
+
+            if (await controller.IsSupportedAsync())
+            {
+                await controller.SetLightControlOwnerAsync(true, true);
+            }
         }
         catch (Exception ex)
         {
@@ -786,7 +943,11 @@ public partial class App
         try
         {
             var controller = IoCContainer.Resolve<SpectrumKeyboardBacklightController>();
-            if (await controller.IsSupportedAsync()) await controller.StartAuroraIfNeededAsync();
+
+            if (await controller.IsSupportedAsync())
+            {
+                await controller.StartAuroraIfNeededAsync();
+            }
         }
         catch (Exception ex)
         {
@@ -799,7 +960,11 @@ public partial class App
         try
         {
             var controller = IoCContainer.Resolve<GPUOverclockController>();
-            if (await controller.IsSupportedAsync()) await controller.EnsureOverclockIsAppliedAsync();
+
+            if (await controller.IsSupportedAsync())
+            {
+                await controller.EnsureOverclockIsAppliedAsync();
+            }
         }
         catch (Exception ex)
         {
@@ -817,7 +982,10 @@ public partial class App
             {
                 await feature.InitializeAsync().ConfigureAwait(false);
 
-                if (!feature.DoNotApply) await feature.ApplyInternalProfileAsync().ConfigureAwait(false);
+                if (!feature.DoNotApply)
+                {
+                    await feature.ApplyInternalProfileAsync().ConfigureAwait(false);
+                }
 
                 Log.Instance.Trace($"AMD Overclocking Controller initialization task finished.");
             }
@@ -841,11 +1009,18 @@ public partial class App
             fanManager.Initialize();
 
             var fanSettings = IoCContainer.Resolve<FanCurveSettings>();
-            if (fanSettings.Store.Entries.Count > 0)
+
+            if (fanSettings.Store.Entries.Count == 0)
             {
-                Log.Instance.Trace($"Applying {fanSettings.Store.Entries.Count} fan curves from settings...");
-                await fanManager.LoadAndApply(fanSettings.Store.Entries).ConfigureAwait(false);
+                fanSettings.Save();
             }
+
+            Log.Instance.Trace($"Applying {fanSettings.Store.Entries.Count} fan curves from settings...");
+            await fanManager.LoadAndApply(fanSettings.Store.Entries).ConfigureAwait(false);
+        }
+        catch (InvalidOperationException)
+        {
+            Log.Instance.Trace($"Profile apply has been canceled due to AC issue.");
         }
         catch (Exception ex)
         {
@@ -859,12 +1034,17 @@ public partial class App
 
     public void InitFloatingGadget()
     {
-        MessagingCenter.Subscribe<FloatingGadgetChangedMessage>(this,
-            message => { Dispatcher.Invoke(() => HandleFloatingGadgetCommand(message.State)); });
+        MessagingCenter.Subscribe<FloatingGadgetChangedMessage>(this, message =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                HandleFloatingGadgetCommand(message.State);
+            });
+        });
 
-        var settings = IoCContainer.Resolve<ApplicationSettings>();
+        var floatingGadgetSettings = IoCContainer.Resolve<FloatingGadgetSettings>();
 
-        if (settings.Store.ShowFloatingGadgets)
+        if (floatingGadgetSettings.Store.ShowFloatingGadgets)
         {
             HandleFloatingGadgetCommand(FloatingGadgetState.Show);
         }
@@ -872,18 +1052,24 @@ public partial class App
 
     private void HandleFloatingGadgetCommand(FloatingGadgetState command)
     {
-        var settings = IoCContainer.Resolve<ApplicationSettings>();
-        bool shouldBeUpper = settings.Store.SelectedStyleIndex == 1;
+        var floatingGadgetSettings = IoCContainer.Resolve<FloatingGadgetSettings>();
+        bool shouldBeUpper = floatingGadgetSettings.Store.SelectedStyleIndex == 1;
 
         switch (command)
         {
             case FloatingGadgetState.Hidden:
-                FloatingGadget?.Hide();
+                if (FloatingGadget != null)
+                {
+                    FloatingGadget.Hide();
+                }
                 break;
 
             case FloatingGadgetState.Show:
                 EnsureCorrectGadgetType(shouldBeUpper);
-                FloatingGadget?.Show();
+                if (FloatingGadget != null)
+                {
+                    FloatingGadget.Show();
+                }
                 break;
 
             case FloatingGadgetState.Toggle:
@@ -894,12 +1080,16 @@ public partial class App
                 else
                 {
                     EnsureCorrectGadgetType(shouldBeUpper);
-                    FloatingGadget?.Show();
+                    if (FloatingGadget != null)
+                    {
+                        FloatingGadget.Show();
+                    }
                 }
                 break;
         }
 
-        settings.Store.ShowFloatingGadgets = FloatingGadget?.IsVisible ?? false;
+        floatingGadgetSettings.Store.ShowFloatingGadgets = FloatingGadget?.IsVisible ?? false;
+        floatingGadgetSettings.SynchronizeStore();
     }
 
     private void EnsureCorrectGadgetType(bool shouldBeUpper)
@@ -915,10 +1105,31 @@ public partial class App
 
     private void EnsureGadgetCreated(bool isUpper)
     {
-        if (FloatingGadget != null) return;
+        if (FloatingGadget != null)
+        {
+            return;
+        }
 
         FloatingGadget = isUpper ? new FloatingGadgetUpper() : new FloatingGadget();
-        FloatingGadget.Closed += (s, e) => FloatingGadget = null;
+        FloatingGadget.Closed += (s, e) =>
+        {
+            FloatingGadget = null;
+        };
+    }
+
+    private static async Task InitLampArrayControllerAsync()
+    {
+        try
+        {
+            var controller = IoCContainer.Resolve<LampArrayController>();
+            var settings = IoCContainer.Resolve<LampArraySettings>();
+            controller.SetScreenCaptureProvider(new SpectrumScreenCapture());
+            await controller.InitializeAsync(settings).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Log.Instance.Trace($"InitLampArrayControllerAsync failed.", ex);
+        }
     }
 
     private async Task SafeInitAsync(Func<Task> action, string taskName)

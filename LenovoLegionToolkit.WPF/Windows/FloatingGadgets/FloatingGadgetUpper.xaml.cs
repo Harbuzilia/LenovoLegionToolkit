@@ -1,4 +1,12 @@
-﻿using System;
+﻿using LenovoLegionToolkit.Lib;
+using LenovoLegionToolkit.Lib.Controllers.Sensors;
+using LenovoLegionToolkit.Lib.Messaging;
+using LenovoLegionToolkit.Lib.Messaging.Messages;
+using LenovoLegionToolkit.Lib.Settings;
+using LenovoLegionToolkit.Lib.Utils;
+using LenovoLegionToolkit.WPF.Resources;
+using LenovoLegionToolkit.WPF.Settings;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -10,13 +18,6 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
-using LenovoLegionToolkit.Lib;
-using LenovoLegionToolkit.Lib.Controllers.Sensors;
-using LenovoLegionToolkit.Lib.Messaging;
-using LenovoLegionToolkit.Lib.Messaging.Messages;
-using LenovoLegionToolkit.Lib.Settings;
-using LenovoLegionToolkit.Lib.Utils;
-using LenovoLegionToolkit.WPF.Resources;
 
 namespace LenovoLegionToolkit.WPF.Windows.FloatingGadgets;
 
@@ -88,9 +89,11 @@ public partial class FloatingGadgetUpper
     #endregion
 
     private readonly ApplicationSettings _settings = IoCContainer.Resolve<ApplicationSettings>();
+    private readonly FloatingGadgetSettings _floatingGadgetSettings = IoCContainer.Resolve<FloatingGadgetSettings>();
     private readonly SensorsController _controller = IoCContainer.Resolve<SensorsController>();
     private readonly SensorsGroupController _sensorsGroupControllers = IoCContainer.Resolve<SensorsGroupController>();
     private readonly FpsSensorController _fpsController = IoCContainer.Resolve<FpsSensorController>();
+    private readonly SensorsControlSettings _sensorsControlSettings = IoCContainer.Resolve<SensorsControlSettings>();
 
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly StringBuilder _stringBuilder = new(64);
@@ -112,9 +115,12 @@ public partial class FloatingGadgetUpper
     {
         InitializeComponent();
 
-        RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
+        if (!AppFlags.Instance.EnableHardwareAcceleration && !_settings.Store.EnableHardwareAcceleration)
+        {
+            RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
+        }
 
-        _activeItems = new HashSet<FloatingGadgetItem>(_settings.Store.FloatingGadgetItems);
+        _activeItems = new HashSet<FloatingGadgetItem>(_floatingGadgetSettings.Store.Items);
 
         _itemsMap = new()
         {
@@ -149,11 +155,11 @@ public partial class FloatingGadgetUpper
             { _pchGroup, ([FloatingGadgetItem.PchTemperature, FloatingGadgetItem.PchFan], null) }
         };
 
-        if (_settings.Store.FloatingGadgetItems.Count == 0)
+        if (_floatingGadgetSettings.Store.Items.Count == 0)
         {
-            _settings.Store.FloatingGadgetItems = Enum.GetValues<FloatingGadgetItem>().ToList();
-            _settings.SynchronizeStore();
-            _activeItems = new HashSet<FloatingGadgetItem>(_settings.Store.FloatingGadgetItems);
+            _floatingGadgetSettings.Store.Items = Enum.GetValues<FloatingGadgetItem>().ToList();
+            _floatingGadgetSettings.SynchronizeStore();
+            _activeItems = new HashSet<FloatingGadgetItem>(_floatingGadgetSettings.Store.Items);
         }
 
         IsVisibleChanged += FloatingGadget_IsVisibleChanged;
@@ -229,11 +235,13 @@ public partial class FloatingGadgetUpper
     {
         if (IsVisible)
         {
+            _sensorsGroupControllers.ShowAverageCpuFrequency = _sensorsControlSettings.Store.ShowCpuAverageFrequency;
+
             CheckAndUpdateFpsMonitoring();
             UpdateGadgetControlsVisibility();
 
             _sensorsGroupControllers.SensorsUpdated += OnSensorsUpdated;
-            _sensorsGroupControllers.Start(this, TimeSpan.FromSeconds(_settings.Store.FloatingGadgetsRefreshInterval));
+            _sensorsGroupControllers.Start(this, TimeSpan.FromSeconds(_floatingGadgetSettings.Store.FloatingGadgetsRefreshInterval));
         }
         else
         {
@@ -547,7 +555,7 @@ public partial class FloatingGadgetUpper
 
     private async void OnSensorsUpdated(object? sender, EventArgs e)
     {
-        var interval = TimeSpan.FromSeconds(_settings.Store.FloatingGadgetsRefreshInterval);
+        var interval = TimeSpan.FromSeconds(_floatingGadgetSettings.Store.FloatingGadgetsRefreshInterval);
         if (DateTime.Now - _lastUpdate < interval) return;
 
         _lastUpdate = DateTime.Now;

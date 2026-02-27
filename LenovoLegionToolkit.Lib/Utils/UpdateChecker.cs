@@ -13,24 +13,26 @@ using NeoSmart.AsyncLock;
 using Newtonsoft.Json;
 using Octokit;
 using Octokit.Internal;
+using System.Security.Cryptography.X509Certificates;
+using LenovoLegionToolkit.Lib.Resources;
 
 namespace LenovoLegionToolkit.Lib.Utils;
 
 public class UpdateChecker
 {
     private readonly HttpClientFactory _httpClientFactory;
-    private readonly UpdateCheckSettings _updateCheckSettings = IoCContainer.Resolve<UpdateCheckSettings>();
+    private readonly UpdateSettings _updateSettings = IoCContainer.Resolve<UpdateSettings>();
     private readonly AsyncLock _updateSemaphore = new();
 
     private static readonly Dictionary<string, ProjectEntry> ProjectEntries = new();
-    public readonly string Branch;
     private const string SERVER_URL = "http://kaguya.net.cn:9999";
+    private const string TRUSTED_SIGNATURE_THUMBPRINT = "86CCA5127557A2DE9649F44337A755FFD014F7B1";
     private const int MAX_RETRY_COUNT = 3;
 
     private DateTime _lastUpdate;
     private TimeSpan _minimumTimeSpanForRefresh;
     private Update[] _updates = [];
-    public UpdateFromServer UpdateFromServer;
+    public UpdateFromServer? UpdateFromServer;
 
     public bool Disable { get; set; }
     public UpdateCheckStatus Status { get; set; }
@@ -39,35 +41,32 @@ public class UpdateChecker
     {
         _httpClientFactory = httpClientFactory;
 
-        Branch = File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DevMode")) ? "Dev" : "Release";
-        
         UpdateMinimumTimeSpanForRefresh();
-        _lastUpdate = _updateCheckSettings.Store.LastUpdateCheckDateTime ?? DateTime.MinValue;
+        _lastUpdate = _updateSettings.Store.LastUpdateCheckDateTime ?? DateTime.MinValue;
     }
 
     public async Task<Version?> CheckAsync(bool forceCheck)
     {
         using (await _updateSemaphore.LockAsync().ConfigureAwait(false))
         {
-            ApplicationSettings settings = IoCContainer.Resolve<ApplicationSettings>();
-            if (settings.Store.UpdateMethod == UpdateMethod.Github)
+            if (Disable)
             {
-                if (Disable)
-                {
-                    _lastUpdate = DateTime.UtcNow;
-                    _updates = [];
-                    return null;
-                }
+                _lastUpdate = DateTime.UtcNow;
+                _updates = [];
+                return null;
+            }
 
+            var timeSpanSinceLastUpdate = DateTime.UtcNow - _lastUpdate;
+            var shouldCheck = timeSpanSinceLastUpdate > _minimumTimeSpanForRefresh;
+
+            if (_updateSettings.Store.UpdateMethod == UpdateMethod.GitHub)
+            {
                 try
                 {
-                    var timeSpanSinceLastUpdate = DateTime.UtcNow - _lastUpdate;
-                    var shouldCheck = timeSpanSinceLastUpdate > _minimumTimeSpanForRefresh;
-
                     if (!forceCheck && !shouldCheck)
                         return _updates.Length != 0 ? _updates.First().Version : null;
 
-                    Log.Instance.Trace($"Checking...");
+                    Log.Instance.Trace($"Checking GitHub for updates...");
 
                     var adapter = new HttpClientAdapter(_httpClientFactory.CreateHandler);
                     var productInformation = new ProductHeaderValue("LenovoLegionToolkit-UpdateChecker");
@@ -75,22 +74,24 @@ public class UpdateChecker
                     var githubClient = new GitHubClient(connection);
                     var releases = await githubClient.Repository.Release.GetAll("LenovoLegionToolkit-Team", "LenovoLegionToolkit", new ApiOptions { PageSize = 5 }).ConfigureAwait(false);
 
-                    var thisReleaseVersion = Assembly.GetEntryAssembly()?.GetName().Version;
+                    var thisReleaseVersion = Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(0, 0, 0, 0);
                     var thisBuildDate = Assembly.GetEntryAssembly()?.GetBuildDateTime() ?? new DateTime(2000, 1, 1);
+                    var updateChannel = _updateSettings.Store.UpdateChannel;
 
-                    Log.Instance.Trace($"Found {releases.Count} releases. Current: {thisReleaseVersion} built on {thisBuildDate:yyyy-MM-dd}");
+                    Log.Instance.Trace($"Found {releases.Count} releases. Current: {thisReleaseVersion} built on {thisBuildDate:yyyy-MM-dd}. Channel: {updateChannel}");
                     foreach (var r in releases)
                     {
-                        Log.Instance.Trace($"- {r.TagName} (Draft: {r.Draft}, Pre: {r.Prerelease}, Date: {r.CreatedAt:yyyy-MM-dd})");
+                        Log.Instance.Trace($"- {r.TagName} (Draft: {r.Draft}, Pre: {r.Prerelease}, Branch: {r.TargetCommitish}, Date: {r.CreatedAt:yyyy-MM-dd})");
                     }
 
                     var updates = releases
                         .Where(r => !r.Draft)
-                        .Where(r => !r.Prerelease)
+                        .Where(r => IsMatchingChannel(r, updateChannel))
                         .Where(r => (r.PublishedAt ?? r.CreatedAt).UtcDateTime >= thisBuildDate)
-                        .Select(r => new Update(r))
-                        .Where(r => r.Version > thisReleaseVersion)
+                        .Select(r => new { Release = r, Version = TryParseReleaseVersion(r.TagName) })
+                        .Where(r => r.Version is not null && r.Version > thisReleaseVersion)
                         .OrderByDescending(r => r.Version)
+                        .Select(r => new Update(r.Release))
                         .ToArray();
 
                     Log.Instance.Trace($"Checked [updates.Length={updates.Length}]");
@@ -109,7 +110,7 @@ public class UpdateChecker
                 }
                 catch (Exception ex)
                 {
-                    Log.Instance.Trace($"Error checking for updates.", ex);
+                    Log.Instance.Trace($"Error checking for updates via GitHub.", ex);
 
                     Status = UpdateCheckStatus.Error;
                     return null;
@@ -117,15 +118,21 @@ public class UpdateChecker
                 finally
                 {
                     _lastUpdate = DateTime.UtcNow;
-                    _updateCheckSettings.Store.LastUpdateCheckDateTime = _lastUpdate;
-                    _updateCheckSettings.SynchronizeStore();
+                    _updateSettings.Store.LastUpdateCheckDateTime = _lastUpdate;
+                    _updateSettings.SynchronizeStore();
                 }
             }
             else
             {
                 try
                 {
-                    var (currentVersion, newVersion, statusCode, projectInfo, patchNote) = await TryGetUpdateFromServer().ConfigureAwait(false);
+                    if (!forceCheck && !shouldCheck && UpdateFromServer?.Url != null)
+                        return Version.Parse(ProjectEntries.Values
+                            .Where(entry => entry.ProjectName == $"LenovoLegionToolkit{_updateSettings.Store.UpdateChannel}")
+                            .FirstOrDefault().ProjectVersion ?? "0.0.0.0");
+
+                    Log.Instance.Trace($"Checking Server for updates...");
+                    var (currentVersion, newVersion, statusCode, projectInfo, patchNote) = await TryGetUpdateFromServer(_updateSettings.Store.UpdateChannel).ConfigureAwait(false);
 
                     if (statusCode == StatusCode.Null)
                     {
@@ -158,17 +165,20 @@ public class UpdateChecker
                             Status = UpdateCheckStatus.Success;
                             UpdateFromServer = new UpdateFromServer(projectInfo, patchNote);
                             return newVersion;
+
                         case StatusCode.Update when currentVersion != newVersion:
                             Log.Instance.Trace($"Normal update branch");
 
                             Status = UpdateCheckStatus.Success;
                             UpdateFromServer = new UpdateFromServer(projectInfo, patchNote);
                             return newVersion;
+
                         case StatusCode.NoUpdate:
                         case StatusCode.ForceUpdate when newVersion == currentVersion:
                             Log.Instance.Trace($"No updates are available.");
                             Status = UpdateCheckStatus.Success;
                             return null;
+
                         default:
                             throw new ArgumentOutOfRangeException();
                     }
@@ -176,8 +186,8 @@ public class UpdateChecker
                 finally
                 {
                     _lastUpdate = DateTime.UtcNow;
-                    _updateCheckSettings.Store.LastUpdateCheckDateTime = _lastUpdate;
-                    _updateCheckSettings.SynchronizeStore();
+                    _updateSettings.Store.LastUpdateCheckDateTime = _lastUpdate;
+                    _updateSettings.SynchronizeStore();
                 }
             }
         }
@@ -194,12 +204,13 @@ public class UpdateChecker
         using (await _updateSemaphore.LockAsync(cancellationToken).ConfigureAwait(false))
         {
             var tempPath = Path.Combine(Folders.Temp, $"LenovoLegionToolkitSetup_{Guid.NewGuid()}.exe");
-            var latestUpdate = _updates.OrderByDescending(u => u.Version).FirstOrDefault();
 
-            if (latestUpdate.Url != null)
+            if (_updateSettings.Store.UpdateMethod == UpdateMethod.GitHub)
             {
-                if (latestUpdate.Equals(default))
-                    throw new InvalidOperationException("No updates available");
+                var latestUpdate = _updates.OrderByDescending(u => u.Version).FirstOrDefault();
+
+                if (latestUpdate.Url is null)
+                    throw new InvalidOperationException("No GitHub updates available");
 
                 await using var fileStream = File.OpenWrite(tempPath);
                 using var httpClient = _httpClientFactory.Create();
@@ -207,22 +218,26 @@ public class UpdateChecker
             }
             else
             {
-                if (UpdateFromServer.Equals(default))
-                    throw new InvalidOperationException("No updates available");
+                if (UpdateFromServer == null)
+                    throw new InvalidOperationException("No Server updates available");
 
-                if (UpdateFromServer.Url is null)
+                if (UpdateFromServer?.Url is null)
                     throw new InvalidOperationException("Setup file URL could not be found");
 
-                await using var fileStream = File.OpenWrite(tempPath);
                 using var httpClient = _httpClientFactory.Create();
-                await httpClient.DownloadAsync(UpdateFromServer.Url, fileStream, progress, cancellationToken, true).ConfigureAwait(false);
+                using var fileStream = File.Create(tempPath);
+
+                await httpClient.DownloadAsync(UpdateFromServer?.Url!, fileStream, progress, cancellationToken, true).ConfigureAwait(false);
+                fileStream.Dispose();
+
+                VerifySignature(tempPath);
             }
 
             return tempPath;
         }
     }
 
-    public void UpdateMinimumTimeSpanForRefresh() => _minimumTimeSpanForRefresh = _updateCheckSettings.Store.UpdateCheckFrequency switch
+    public void UpdateMinimumTimeSpanForRefresh() => _minimumTimeSpanForRefresh = _updateSettings.Store.UpdateCheckFrequency switch
     {
         UpdateCheckFrequency.Never => TimeSpan.FromSeconds(0),
         UpdateCheckFrequency.PerHour => TimeSpan.FromHours(1),
@@ -231,7 +246,95 @@ public class UpdateChecker
         UpdateCheckFrequency.PerDay => TimeSpan.FromDays(1),
         UpdateCheckFrequency.PerWeek => TimeSpan.FromDays(7),
         UpdateCheckFrequency.PerMonth => TimeSpan.FromDays(30),
-        _ => throw new ArgumentException(nameof(_updateCheckSettings.Store.UpdateCheckFrequency))
+        _ => throw new ArgumentException(nameof(_updateSettings.Store.UpdateCheckFrequency))
+    };
+
+    private static void VerifySignature(string filePath)
+    {
+        try
+        {
+#pragma warning disable SYSLIB0057
+            using var baseCert = X509Certificate.CreateFromSignedFile(filePath);
+#pragma warning restore SYSLIB0057
+            using var cert = new X509Certificate2(baseCert);
+
+            if (!cert.Thumbprint.Equals(TRUSTED_SIGNATURE_THUMBPRINT, StringComparison.OrdinalIgnoreCase))
+            {
+                var detail = $"Thumbprint mismatch (Actual: {cert.Thumbprint})";
+                throw new SecurityException(string.Format(Resource.UpdateChecker_Security_Thumbprint, detail));
+            }
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                }
+            }
+            catch { /* Ignore */ }
+
+            Log.Instance.Trace($"Signature verification failed for '{filePath}': {ex.Message}");
+            throw new SecurityException(string.Format(Resource.UpdateChecker_Security_Invalid, ex.Message), ex);
+        }
+    }
+
+    #region GitHub Methods
+
+    private static bool IsMatchingChannel(Release release, UpdateChannel updateChannel)
+    {
+        switch (updateChannel)
+        {
+            case UpdateChannel.Stable:
+                return IsReleaseOnBranch(release, "master") && !release.Prerelease;
+            case UpdateChannel.Beta:
+                return IsReleaseOnBranch(release, "master") && release.Prerelease;
+            case UpdateChannel.Dev:
+                return IsReleaseOnBranch(release, "dev") && !release.Prerelease;
+            default:
+                return false;
+        }
+    }
+
+    private static bool IsReleaseOnBranch(Release release, string branch)
+    {
+        var target = release.TargetCommitish;
+
+        if (string.IsNullOrWhiteSpace(target))
+            return branch.Equals("master", StringComparison.OrdinalIgnoreCase);
+
+        return target.Equals(branch, StringComparison.OrdinalIgnoreCase)
+               || target.EndsWith($"/{branch}", StringComparison.OrdinalIgnoreCase)
+               || target.EndsWith($"\\{branch}", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static Version? TryParseReleaseVersion(string? tagName)
+    {
+        if (string.IsNullOrWhiteSpace(tagName))
+            return null;
+
+        var normalized = tagName.TrimStart('v', 'V');
+        if (Version.TryParse(normalized, out var parsed))
+            return parsed;
+
+        var numericPart = new string(normalized
+            .TakeWhile(c => char.IsDigit(c) || c == '.')
+            .ToArray())
+            .Trim('.');
+
+        return Version.TryParse(numericPart, out parsed) ? parsed : null;
+    }
+
+    #endregion
+
+    #region Server Update Methods
+
+    private static string GetChannelSuffix(UpdateChannel channel) => channel switch
+    {
+        UpdateChannel.Beta => "Beta",
+        UpdateChannel.Dev => "Dev",
+        _ => ""
     };
 
     private static bool IsServerUnderMaintenanceMode()
@@ -239,9 +342,9 @@ public class UpdateChecker
         return ProjectEntries.ContainsKey("MaintenanceMode") && ProjectEntries["MaintenanceMode"].MaintenanceMode;
     }
 
-    private async Task<(StatusCode, string)> GetLatestVersionWithRetryAsync(ProjectInfo projectInfo)
+    private async Task<(StatusCode, string)> GetLatestVersionWithRetryAsync(ProjectInfo projectInfo, UpdateChannel channel)
     {
-        var (status, version) = await RetryAsync(() => GetLatestVersionFromServer(projectInfo)).ConfigureAwait(false);
+        var (status, version) = await RetryAsync(() => GetLatestVersionFromServer(projectInfo, channel)).ConfigureAwait(false);
 
         Log.Instance.Trace($"Project {projectInfo.ProjectName}");
         Log.Instance.Trace($"Status code: {status.ToString()}");
@@ -271,7 +374,7 @@ public class UpdateChecker
         return (StatusCode.Null, string.Empty);
     }
 
-    private async Task<(StatusCode, string)> GetLatestVersionFromServer(ProjectInfo projectInfo)
+    private async Task<(StatusCode, string)> GetLatestVersionFromServer(ProjectInfo projectInfo, UpdateChannel channel)
     {
         try
         {
@@ -295,6 +398,8 @@ public class UpdateChecker
                 return (StatusCode.Null, string.Empty);
             }
 
+            ProjectEntries.Clear();
+
             var maintenanceEntry = new ProjectEntry();
 
             if (projectConfig.TryGetValue("MaintenanceMode", out var maintenanceObj))
@@ -308,12 +413,12 @@ public class UpdateChecker
                     maintenanceEntry.MaintenanceMode = false;
                 }
 
-                ProjectEntries.TryAdd("MaintenanceMode", maintenanceEntry);
+                ProjectEntries["MaintenanceMode"] = maintenanceEntry;
             }
 
             foreach (var project in projectConfig)
             {
-                if (project.Key == "MaintenanceMode" || ProjectEntries.ContainsKey(project.Key))
+                if (project.Key == "MaintenanceMode")
                 {
                     continue;
                 }
@@ -343,13 +448,13 @@ public class UpdateChecker
                     }
                 }
 
-                ProjectEntries.Add(project.Key, new ProjectEntry
+                ProjectEntries[project.Key] = new ProjectEntry
                 {
                     ProjectName = project.Key,
                     ProjectCurrentVersion = projectInfo.ProjectCurrentVersion ?? string.Empty,
                     ProjectVersion = version,
                     ProjectForceUpdate = forceUpdate
-                });
+                };
             }
 
             foreach (var kvp in ProjectEntries)
@@ -360,7 +465,7 @@ public class UpdateChecker
                     $"Project: {kvp.Value.ProjectName}, Version: {kvp.Value.ProjectVersion}, Force Update: {kvp.Value.ProjectForceUpdate}");
             }
 
-            string projectName = Branch == "Dev" ? $"{projectInfo.ProjectName}Dev" : projectInfo.ProjectName;
+            string projectName = $"{projectInfo.ProjectName}{GetChannelSuffix(channel)}";
 
             if (!ProjectEntries.TryGetValue(projectName, out var entry))
             {
@@ -394,9 +499,10 @@ public class UpdateChecker
         }
     }
 
-    private async Task<(Version?, Version?, StatusCode, ProjectInfo, string)> TryGetUpdateFromServer()
+    private async Task<(Version?, Version?, StatusCode, ProjectInfo, string)> TryGetUpdateFromServer(UpdateChannel channel)
     {
         var thisReleaseVersion = Assembly.GetEntryAssembly()?.GetName().Version;
+        string folderName = $"LenovoLegionToolkit{GetChannelSuffix(channel)}";
 
         ProjectInfo projectInfo = new ProjectInfo
         {
@@ -405,15 +511,15 @@ public class UpdateChecker
             ProjectAuthor = "LenovoLegionToolkit-Team",
             ProjectCurrentVersion = thisReleaseVersion?.ToString() ?? "0.0.0.0",
             ProjectCurrentExePath = "NULL",
-            ProjectNewExePath = "NULL"
+            ProjectNewExePath = $"{SERVER_URL}/{folderName}/LenovoLegionToolkitSetup.exe"
         };
 
-        var (statusCode, newestVersion) = await GetLatestVersionWithRetryAsync(projectInfo).ConfigureAwait(false);
+        var (statusCode, newestVersion) = await GetLatestVersionWithRetryAsync(projectInfo, channel).ConfigureAwait(false);
 
-        if (IsServerUnderMaintenanceMode() && Branch != "Dev")
+        if (IsServerUnderMaintenanceMode())
         {
             Log.Instance.Trace($"Update Server is currently under maintenance mode.");
-            Log.Instance.Trace($"Current branch is {Branch}");
+            Log.Instance.Trace($"Current channel is {channel}");
             Log.Instance.Trace($"Now exiting...");
 
             Status = UpdateCheckStatus.Success;
@@ -422,15 +528,14 @@ public class UpdateChecker
 
         projectInfo.ProjectNewVersion = newestVersion;
         var currentVersion = Version.Parse(projectInfo.ProjectCurrentVersion);
-        var newVersion = Version.Parse(newestVersion ?? "0.0.0.0");
+        var newVersion = Version.Parse(newestVersion);
         string patchNote = string.Empty;
 
         if ((statusCode != StatusCode.Update && statusCode != StatusCode.ForceUpdate) ||
             string.IsNullOrEmpty(newestVersion)) return (currentVersion, newVersion, statusCode, projectInfo, patchNote);
+
         try
         {
-            string folderName = Branch == "Dev" ? $"{projectInfo.ProjectName}Dev" : projectInfo.ProjectName;
-
             var langData = "en-US";
             if (File.Exists(Path.Combine(Folders.AppData, "lang")))
             {
@@ -456,6 +561,15 @@ public class UpdateChecker
             Log.Instance.Trace($"Failed to fetch patch note or no patch note available: {ex.Message}");
             patchNote = "No patch notes available.";
         }
+
         return (currentVersion, newVersion, statusCode, projectInfo, patchNote);
     }
+    #endregion
+}
+
+public class SecurityException : Exception
+{
+    public SecurityException() { }
+    public SecurityException(string message) : base(message) { }
+    public SecurityException(string message, Exception innerException) : base(message, innerException) { }
 }
