@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Windows.Devices.Enumeration;
 using Windows.Devices.Lights;
+using Windows.Foundation.Metadata;
 using Windows.System;
 using Windows.UI;
 using LenovoLegionToolkit.Lib.Settings;
@@ -86,8 +87,17 @@ public class LampArrayController : IDisposable
             lock (_lampArrays)
             {
                 foreach (var kvp in _lampArrays)
-                    if (kvp.Value.Device.IsAvailable)
+                {
+                    if (ApiInformation.IsPropertyPresent("Windows.Devices.Lights.LampArray", "IsAvailable"))
+                    {
+                        if (kvp.Value.Device.IsAvailable)
+                            return true;
+                    }
+                    else
+                    {
                         return true;
+                    }
+                }
                 return false;
             }
         }
@@ -144,7 +154,12 @@ public class LampArrayController : IDisposable
             lock (_lampArrays)
             {
                 foreach (var device in _lampArrays.Values)
-                    device.Device.AvailabilityChanged -= LampArray_AvailabilityChanged;
+                {
+                    if (ApiInformation.IsEventPresent("Windows.Devices.Lights.LampArray", "AvailabilityChanged"))
+                    {
+                        device.Device.AvailabilityChanged -= LampArray_AvailabilityChanged;
+                    }
+                }
                 _lampArrays.Clear();
             }
 
@@ -299,7 +314,10 @@ public class LampArrayController : IDisposable
             foreach (var kvp in _lampArrays)
             {
                 var device = kvp.Value.Device;
-                if (!device.IsAvailable) continue;
+                if (ApiInformation.IsPropertyPresent("Windows.Devices.Lights.LampArray", "IsAvailable"))
+                {
+                    if (!device.IsAvailable) continue;
+                }
 
                 for (var i = 0; i < device.LampCount; i++) yield return (device.DeviceId, device.GetLampInfo(i));
             }
@@ -319,10 +337,13 @@ public class LampArrayController : IDisposable
             Log.Instance.Trace($"SetAllLampsColor: RGB({color.R},{color.G},{color.B}) on {_lampArrays.Count} devices.");
             foreach (var kvp in _lampArrays)
             {
-                if (!kvp.Value.Device.IsAvailable)
+                if (ApiInformation.IsPropertyPresent("Windows.Devices.Lights.LampArray", "IsAvailable"))
                 {
-                    Log.Instance.Trace($"Device {kvp.Key} is not available.");
-                    continue;
+                    if (!kvp.Value.Device.IsAvailable)
+                    {
+                        Log.Instance.Trace($"Device {kvp.Key} is not available.");
+                        continue;
+                    }
                 }
 
                 try
@@ -353,7 +374,10 @@ public class LampArrayController : IDisposable
             Log.Instance.Trace($"SetLampColors: Setting {lampColors.Count} lamp colors.");
             foreach (var kvp in _lampArrays)
             {
-                if (!kvp.Value.Device.IsAvailable) continue;
+                if (ApiInformation.IsPropertyPresent("Windows.Devices.Lights.LampArray", "IsAvailable"))
+                {
+                    if (!kvp.Value.Device.IsAvailable) continue;
+                }
 
                 try
                 {
@@ -394,7 +418,10 @@ public class LampArrayController : IDisposable
         {
             foreach (var kvp in _lampArrays)
             {
-                if (!kvp.Value.Device.IsAvailable) continue;
+                if (ApiInformation.IsPropertyPresent("Windows.Devices.Lights.LampArray", "IsAvailable"))
+                {
+                    if (!kvp.Value.Device.IsAvailable) continue;
+                }
 
                 try
                 {
@@ -496,15 +523,27 @@ public class LampArrayController : IDisposable
                 if (_lampArrays.TryGetValue(args.Id, out var oldWrapper))
                 {
                     Log.Instance.Trace($"Refreshing stale LampArray instance for {args.Id}");
-                    oldWrapper.Device.AvailabilityChanged -= LampArray_AvailabilityChanged;
+                    if (ApiInformation.IsEventPresent("Windows.Devices.Lights.LampArray", "AvailabilityChanged"))
+                    {
+                        oldWrapper.Device.AvailabilityChanged -= LampArray_AvailabilityChanged;
+                    }
                 }
 
                 _lampArrays[args.Id] = deviceWrapper;
-                lampArray.AvailabilityChanged += LampArray_AvailabilityChanged;
+                if (ApiInformation.IsEventPresent("Windows.Devices.Lights.LampArray", "AvailabilityChanged"))
+                {
+                    lampArray.AvailabilityChanged += LampArray_AvailabilityChanged;
+                }
+            }
+
+            var isAvailableStr = "N/A";
+            if (ApiInformation.IsPropertyPresent("Windows.Devices.Lights.LampArray", "IsAvailable"))
+            {
+                isAvailableStr = lampArray.IsAvailable.ToString();
             }
 
             Log.Instance.Trace(
-                $"LampArray device registered: DeviceId={args.Id}, LampCount={lampArray.LampCount}, IsAvailable={lampArray.IsAvailable}");
+                $"LampArray device registered: DeviceId={args.Id}, LampCount={lampArray.LampCount}, IsAvailable={isAvailableStr}");
 
 
         }
@@ -524,7 +563,10 @@ public class LampArrayController : IDisposable
             {
                 if (_lampArrays.TryGetValue(args.Id, out var device))
                 {
-                    device.Device.AvailabilityChanged -= LampArray_AvailabilityChanged;
+                    if (ApiInformation.IsEventPresent("Windows.Devices.Lights.LampArray", "AvailabilityChanged"))
+                    {
+                        device.Device.AvailabilityChanged -= LampArray_AvailabilityChanged;
+                    }
                     _lampArrays.Remove(args.Id);
                 }
             }
@@ -662,7 +704,12 @@ public class LampArrayController : IDisposable
 
     private void LampArray_AvailabilityChanged(LampArray sender, object args)
     {
-        Log.Instance.Trace($"LampArray availability changed: IsAvailable={sender.IsAvailable}");
+        var isAvailableStr = "N/A";
+        if (ApiInformation.IsPropertyPresent("Windows.Devices.Lights.LampArray", "IsAvailable"))
+        {
+            isAvailableStr = sender.IsAvailable.ToString();
+        }
+        Log.Instance.Trace($"LampArray availability changed: IsAvailable={isAvailableStr}");
     }
 
     public void Dispose()
@@ -679,7 +726,13 @@ public class LampArrayController : IDisposable
 
         lock (_lampArrays)
         {
-            foreach (var dev in _lampArrays.Values) dev.Device.AvailabilityChanged -= LampArray_AvailabilityChanged;
+            foreach (var dev in _lampArrays.Values)
+            {
+                if (ApiInformation.IsEventPresent("Windows.Devices.Lights.LampArray", "AvailabilityChanged"))
+                {
+                    dev.Device.AvailabilityChanged -= LampArray_AvailabilityChanged;
+                }
+            }
             _lampArrays.Clear();
         }
 

@@ -1,12 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFramework>net9.0-windows7.0</TargetFramework>
-		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
-		<Platforms>x64</Platforms>
-		<Nullable>enable</Nullable>
-		<Copyright>© 2026 Bartosz Cichecki, Kaguya, and Dr. Skinner</Copyright>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-		<NeutralLanguage>en</NeutralLanguage>
 		<UseWindowsForms>true</UseWindowsForms>
 	</PropertyGroup>
 
