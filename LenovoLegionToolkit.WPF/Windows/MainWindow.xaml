@@ -107,6 +107,12 @@
                         PageTag="keyboardBacklight"
                         PageType="{x:Type pages:KeyboardBacklightPage}" />
                     <custom:NavigationItem
+                        x:Name="_lampArrayKeyboardItem"
+                        Content="{x:Static resources:Resource.MainWindow_NavigationItem_Keyboard}"
+                        Icon="Keyboard24"
+                        PageTag="lampArrayKeyboardBacklight"
+                        PageType="{x:Type pages:LampArrayRGBKeyboardPage}" />
+                    <custom:NavigationItem
                         Content="{x:Static resources:Resource.MainWindow_NavigationItem_Battery}"
                         Icon="BatteryCheckmark24"
                         PageTag="battery"

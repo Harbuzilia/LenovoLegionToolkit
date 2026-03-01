@@ -189,16 +189,15 @@ public partial class App
 
         var settings = IoCContainer.Resolve<ApplicationSettings>();
 
-        if (settings.Store.HighPerformanceUI)
+        if (AppFlags.Instance.EnableHardwareAcceleration || settings.Store.EnableHardwareAcceleration)
         {
-            // Hardware acceleration + high frame rate for smooth UI
-            RenderOptions.ProcessRenderMode = RenderMode.Default;
+            // High frame rate for smooth UI when hardware acceleration is enabled
             System.Windows.Media.Animation.Timeline.DesiredFrameRateProperty.OverrideMetadata(
                 typeof(System.Windows.Media.Animation.Timeline),
                 new FrameworkPropertyMetadata { DefaultValue = 144 }
             );
         }
-        else if (!AppFlags.Instance.EnableHardwareAcceleration && !settings.Store.EnableHardwareAcceleration)
+        else
         {
             RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
         }

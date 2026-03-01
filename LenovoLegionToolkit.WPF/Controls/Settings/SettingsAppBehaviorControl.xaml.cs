@@ -50,7 +50,6 @@ public partial class SettingsAppBehaviorControl
         _useNewSensorDashboardToggle.IsChecked = _settings.Store.UseNewSensorDashboard;
         _lockWindowSizeToggle.IsChecked = _settings.Store.LockWindowSize;
         _enableLoggingToggle.IsChecked = _settings.Store.EnableLogging;
-        _highPerformanceUIToggle.IsChecked = _settings.Store.HighPerformanceUI;
         _keyboardBacklightTimeoutSlider.Value = _settings.Store.KeyboardBacklightTimeout;
         UpdateKeyboardTimeoutText(_settings.Store.KeyboardBacklightTimeout);
 
@@ -84,7 +83,6 @@ public partial class SettingsAppBehaviorControl
         _hardwareSensorsToggle.Visibility = Visibility.Visible;
         _lockWindowSizeToggle.Visibility = Visibility.Visible;
         _floatingGadgetsToggle.Visibility = Visibility.Visible;
-        _highPerformanceUIToggle.Visibility = Visibility.Visible;
         _keyboardBacklightTimeoutSlider.Visibility = Visibility.Visible;
 
         _hardwareSensorsToggle.IsChecked = _settings.Store.EnableHardwareSensors;
@@ -472,18 +470,6 @@ public partial class SettingsAppBehaviorControl
         window.ShowDialog();
     }
 
-    private void HighPerformanceUIToggle_Click(object sender, RoutedEventArgs e)
-    {
-        if (_isRefreshing || !IsLoaded)
-            return;
-
-        var state = _highPerformanceUIToggle.IsChecked;
-        if (state is null)
-            return;
-
-        _settings.Store.HighPerformanceUI = state.Value;
-        _settings.SynchronizeStore();
-    }
 
     private void KeyboardBacklightTimeoutSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {

@@ -9,7 +9,7 @@ using LenovoLegionToolkit.Lib.Utils;
 namespace LenovoLegionToolkit.Lib.Services;
 
 /// <summary>
-/// Service that monitors user inactivity and automatically turns off keyboard backlight
+/// Monitors user inactivity and automatically turns off keyboard backlight
 /// after the configured timeout. Restores the previous brightness when user interacts again.
 /// </summary>
 public class KeyboardBacklightTimeoutService : IDisposable
@@ -22,16 +22,9 @@ public class KeyboardBacklightTimeoutService : IDisposable
     private bool _isBacklightOff;
     private uint _lastInputTime;
     
-    // P/Invoke for GetLastInputInfo
+
     [DllImport("user32.dll")]
     private static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
-    
-    [StructLayout(LayoutKind.Sequential)]
-    private struct LASTINPUTINFO
-    {
-        public uint cbSize;
-        public uint dwTime;
-    }
 
     public KeyboardBacklightTimeoutService(
         ApplicationSettings settings,
@@ -40,13 +33,10 @@ public class KeyboardBacklightTimeoutService : IDisposable
         _settings = settings;
         _backlightFeature = backlightFeature;
         
-        _checkTimer = new Timer(1000); // Check every second
+        _checkTimer = new Timer(1000); 
         _checkTimer.Elapsed += CheckTimer_Elapsed;
     }
 
-    /// <summary>
-    /// Start monitoring user inactivity.
-    /// </summary>
     public void Start()
     {
         if (_settings.Store.KeyboardBacklightTimeout <= 0)
@@ -57,9 +47,6 @@ public class KeyboardBacklightTimeoutService : IDisposable
         Log.Instance.Trace($"[BacklightTimeout] Started with {_settings.Store.KeyboardBacklightTimeout}s timeout");
     }
 
-    /// <summary>
-    /// Stop monitoring.
-    /// </summary>
     public void Stop()
     {
         _checkTimer.Stop();
@@ -83,7 +70,6 @@ public class KeyboardBacklightTimeoutService : IDisposable
 
             if (_isBacklightOff)
             {
-                // User became active - restore backlight
                 if (idleSeconds < 2)
                 {
                     await RestoreBacklightAsync();
@@ -91,7 +77,6 @@ public class KeyboardBacklightTimeoutService : IDisposable
             }
             else
             {
-                // Check if we need to turn off
                 if (idleSeconds >= timeoutSeconds)
                 {
                     await TurnOffBacklightAsync();
@@ -113,10 +98,8 @@ public class KeyboardBacklightTimeoutService : IDisposable
             if (!await _backlightFeature.IsSupportedAsync())
                 return;
 
-            // Save current state
             _savedState = await _backlightFeature.GetStateAsync();
             
-            // Turn off
             await _backlightFeature.SetStateAsync(WhiteKeyboardBacklightState.Off);
             _isBacklightOff = true;
             

@@ -7,26 +7,6 @@ using LenovoLegionToolkit.Lib.Settings;
 namespace LenovoLegionToolkit.Lib.Controllers;
 
 /// <summary>
-/// Entry in GPU process history
-/// </summary>
-public readonly struct GpuProcessHistoryEntry
-{
-    public string ProcessName { get; init; }
-    public DateTime StartTime { get; init; }
-    public DateTime? EndTime { get; init; }
-    public bool IsActive => EndTime is null;
-}
-
-/// <summary>
-/// Event args for GPU process changes
-/// </summary>
-public class GpuProcessChangedEventArgs : EventArgs
-{
-    public string ProcessName { get; init; } = string.Empty;
-    public bool Started { get; init; }
-}
-
-/// <summary>
 /// Tracks GPU process changes, maintains history, and fires events for notifications.
 /// </summary>
 public class GPUWatcherService
@@ -84,18 +64,12 @@ public class GPUWatcherService
                 .Where(n => !string.IsNullOrEmpty(n))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             
-            // Find new processes (started using GPU)
             var newProcesses = currentNames.Except(_previousProcesses, StringComparer.OrdinalIgnoreCase);
-            
-            // Find stopped processes (no longer using GPU)
             var stoppedProcesses = _previousProcesses.Except(currentNames, StringComparer.OrdinalIgnoreCase);
-            
             var notificationsEnabled = _settings.Store.Notifications.GpuProcesses;
             
-            // Handle new processes
             foreach (var processName in newProcesses)
             {
-                // Add to history
                 _history.Add(new GpuProcessHistoryEntry
                 {
                     ProcessName = processName,
@@ -103,7 +77,6 @@ public class GPUWatcherService
                     EndTime = null
                 });
                 
-                // Fire event (for notifications)
                 if (notificationsEnabled)
                 {
                     ProcessStarted?.Invoke(this, new GpuProcessChangedEventArgs
@@ -114,10 +87,8 @@ public class GPUWatcherService
                 }
             }
             
-            // Handle stopped processes
             foreach (var processName in stoppedProcesses)
             {
-                // Update history entry with end time
                 var entryIndex = _history.FindLastIndex(e => 
                     e.ProcessName.Equals(processName, StringComparison.OrdinalIgnoreCase) && 
                     e.IsActive);
@@ -133,7 +104,6 @@ public class GPUWatcherService
                     };
                 }
                 
-                // Fire event
                 if (notificationsEnabled)
                 {
                     ProcessStopped?.Invoke(this, new GpuProcessChangedEventArgs
@@ -144,13 +114,11 @@ public class GPUWatcherService
                 }
             }
             
-            // Trim history if needed
             while (_history.Count > MaxHistorySize)
             {
                 _history.RemoveAt(0);
             }
             
-            // Update previous state
             _previousProcesses = currentNames;
         }
     }

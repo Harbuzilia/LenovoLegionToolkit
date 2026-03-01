@@ -124,7 +124,6 @@ public class IoCModule : Module
         builder.Register<GPUOverclockController>();
         builder.Register<GPUWatcherService>();
         builder.Register<KeyboardBacklightTimeoutService>();
-        builder.Register<ProfileSyncService>();
         builder.Register<RGBKeyboardBacklightController>();
         builder.Register<SensorsController>();
         builder.Register<SensorsControllerV1>(true);

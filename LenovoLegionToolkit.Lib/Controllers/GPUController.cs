@@ -255,6 +255,7 @@ public class GPUController
         {
             _processes = processNames;
             _state = GPUState.MonitorConnected;
+            _watcherService?.UpdateProcessList(_processes);
 
             // Comment due to annoying.
             //if (Log.Instance.IsTraceEnabled)
@@ -265,6 +266,7 @@ public class GPUController
             _processes = processNames;
             _state = GPUState.Active;
             _gpuInstanceId = gpuInstanceId;
+            _watcherService?.UpdateProcessList(_processes);
 
             Log.Instance.Trace($"Active [state={_state}, processes.Count={_processes.Count}, gpuInstanceId={_gpuInstanceId}, pnpDeviceIdPart={pnpDeviceIdPart}]");
         }
@@ -272,6 +274,7 @@ public class GPUController
         {
             _state = GPUState.Inactive;
             _gpuInstanceId = gpuInstanceId;
+            _watcherService?.UpdateProcessList(Array.Empty<Process>());
 
             Log.Instance.Trace($"Inactive [state={_state}, processes.Count={_processes.Count}, gpuInstanceId={_gpuInstanceId}]");
         }

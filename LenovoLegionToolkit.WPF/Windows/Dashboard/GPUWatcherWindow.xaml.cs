@@ -8,9 +8,6 @@ using LenovoLegionToolkit.Lib.Controllers;
 
 namespace LenovoLegionToolkit.WPF.Windows.Dashboard;
 
-/// <summary>
-/// ViewModel for history list items
-/// </summary>
 public class GpuProcessHistoryItem
 {
     public string ProcessName { get; init; } = string.Empty;
@@ -18,9 +15,6 @@ public class GpuProcessHistoryItem
     public Brush StatusColor { get; init; } = Brushes.Gray;
 }
 
-/// <summary>
-/// Window showing GPU process history and current status
-/// </summary>
 public partial class GPUWatcherWindow
 {
     private readonly GPUController _gpuController;
@@ -35,7 +29,6 @@ public partial class GPUWatcherWindow
         
         Loaded += GPUWatcherWindow_Loaded;
         
-        // Subscribe to refresh events
         _gpuController.Refreshed += GpuController_Refreshed;
     }
 
@@ -48,7 +41,6 @@ public partial class GPUWatcherWindow
     {
         Dispatcher.Invoke(() =>
         {
-            // Update active processes display
             if (e.Processes.Count > 0)
             {
                 var names = e.Processes.Select(p => SafeGetProcessName(p)).Where(n => !string.IsNullOrEmpty(n));

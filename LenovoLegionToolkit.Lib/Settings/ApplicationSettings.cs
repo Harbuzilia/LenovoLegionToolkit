@@ -67,7 +67,6 @@ public class ApplicationSettings : AbstractSettings<ApplicationSettingsStore>
         public bool CustomModeWarningDontShowAgain { get; set; }
         public bool EnableHardwareAcceleration { get; set; }
         public WindowBackdropType BackdropType { get; set; } = WindowBackdropType.Mica;
-        public bool HighPerformanceUI { get; set; }
         public int KeyboardBacklightTimeout { get; set; }
     }
 
